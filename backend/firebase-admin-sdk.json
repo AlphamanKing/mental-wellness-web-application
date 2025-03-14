@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "mental-wellness-webapp",
+  "private_key_id": "d45b2430e0b19618231507d489cb3a0c9b6773c5",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCYhsdDIR5aa1O5\n4XJ0lEjjt2q0dkhvzgf5C0RkWcbSiwdcDjURebjL6eWHrxQ144qFAHdYT5pkKXW+\nB7IuGDEohQ324fRNoM9hkzCoaXCQiCkGbL5GNmq8ona1BsZz3sCm0aCUfoc0k/sR\nhzQHg9OGdpr4x3wLrlY4RpzvcOQe0vSuzExMxAMIzfKlO56AjjyMdKakSQEBGqrF\nRsNe1yVLTlecMTFTAre3s+kIqnp7G3xdhmBdK0hwovHj0ocGxHB0FCHLXEotO3Ey\nWm9hwA4tNAaJdKBz1ABPJ3N/ETSeMRwjoamuhwwxAmiaNKEcLP68doI20AWjWAQ+\np78aX0vhAgMBAAECggEAPfnJ3sOGx1vD9gweyzLzmR/OqkxDq7Zuc+n5nMMD8EoQ\nr/2P361zgtvj6amgzzLJdriVRdt2kwtrrc8HvgYTd3D1FyOB9scIbQ/3Xf8V/4xs\nCxHFkNcMsOBc1rrNiYhyBHa6RoxRGPKmOl2TLRiKKyFnX/4Cr+ZjX1OF8h8PelxB\n6+6wpgsQt93cKppVhI8+G67lM/OZ/dz+PsGrq7R5J0TL4CwnWSRkknOPJikADsTn\n7rXp988JabjDZsuqEp2oNMLIGhYy60Vvtw7fgeDQOFlsOSrsVfT59BAgODQ6PmxI\niTjAWCwyrYf6EobAX2SYhh1pRAxz3Kdyawj7xUKdlwKBgQDLaStkzkY+bzyIvoth\nDKKrA+ynpHS0qCbEnSwpGcdbwacaon7mAJc/jkOe6fmotXpRpEYSEqpeBcIBKuaf\nU2e7BvJupICRzmnmho8FYgh8UJ+ZZOr/mpVHkbP1IozocpGCYTQ+VKpF2jsO4rYQ\n1YDRHWGZ2WFYbMIMtlnD4Nu7BwKBgQC/9c6yaVb5szwr3cC2IX4OS/ZEhmAgK2Ax\nZL3B0gurVbtWokMnTXFLBNMiLwgz/8WQ6vG/i1nIP73dWc0Uu14uZu+YmdE1OEoW\nyo1DR0zXQ5YDCLIf7eV5/PsECY74CsdsrWohhBuqw/sKa64VZW5SVAGnNyFlNnBK\nk/T98p2/1wKBgQCgNBSZMFzij3l9uZTMusbjKhQZdMz1+/mMoL1HIaaB/eM+dvy6\n6Xw18jYP0vduiH/uDROi6FCF/MLvaHp6wZXRF4eY3LbmH0wI47GA69UDE/yfM3xi\nE72+wGKbjrqr2JABv80FymjQ2y/oaWY7m+v4xss4AJ1Kp12t5XCNdWuZwQKBgDl/\n+OVKVoo/XSPKrgIgcDD6Ig+OrNaWB59kDM81CtfMu2wM+M6aDPiqvk+8BNoGoHhz\nV+zHYiJwrX/TeXHfWivOG7D7SkaF0POYws3HWsYUcagA/9I+oYFz/QDNmCzGlcwA\n+gyGFP+G6vjJHoE8O9qfXUtoYTF/KA2+2iEDfqtLAoGAIlJQDOW7zulxhKMBwV0L\ndsg2ENbQnanmyXIH58KsCcG9P8OVMocDjVeiTeqvPbaxYaLaSLBy+Am6x6CkX9UG\n/R+5XIN7wOTOcHJrNP0y6+B/q1mFJjv6/CYzWI7t7Mrcb2akG/Z3Jn+7qQBcNLg8\nXGoEe7nN9OGFJcc/uDM7IHQ=\n-----END PRIVATE KEY-----\n",
+  "client_email": "firebase-adminsdk-fbsvc@mental-wellness-webapp.iam.gserviceaccount.com",
+  "client_id": "112461139520319114086",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/firebase-adminsdk-fbsvc%40mental-wellness-webapp.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}
