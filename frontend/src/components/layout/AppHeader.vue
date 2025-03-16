@@ -101,7 +101,7 @@
           <!-- User is authenticated -->
           <div v-if="isAuthenticated" class="flex items-center ml-4 md:ml-6">
             <!-- Profile dropdown -->
-            <div class="ml-3 relative">
+            <div class="ml-3 relative profile-dropdown">
               <div>
                 <button 
                   @click="toggleProfileMenu" 
@@ -123,7 +123,7 @@
               <!-- Profile dropdown menu -->
               <div 
                 v-if="showProfileMenu" 
-                class="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-10"
+                class="profile-menu origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-10"
               >
                 <div class="px-4 py-2 text-sm text-neutral-700 border-b border-neutral-200">
                   <div class="font-medium">{{ userDisplayName }}</div>
@@ -132,7 +132,7 @@
                 
                 <router-link 
                   to="/profile" 
-                  @click="showProfileMenu = false"
+                  @click="navigateToProfile"
                   class="block px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-100"
                 >
                   Your Profile
@@ -333,7 +333,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../../store/auth'
 
@@ -371,6 +371,11 @@ const toggleProfileMenu = () => {
   showProfileMenu.value = !showProfileMenu.value
 }
 
+const navigateToProfile = () => {
+  router.push('/profile')
+  showProfileMenu.value = false
+}
+
 const logout = async () => {
   try {
     await authStore.logoutUser()
@@ -384,11 +389,18 @@ const logout = async () => {
 
 // Close profile menu when clicking outside
 const handleClickOutside = (event) => {
-  if (showProfileMenu.value && !event.target.closest('.profile-menu')) {
+  const dropdown = event.target.closest('.profile-dropdown')
+  if (!dropdown && showProfileMenu.value) {
     showProfileMenu.value = false
   }
 }
 
-// Add click outside listener
-window.addEventListener('click', handleClickOutside)
+// Proper event listener cleanup
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside)
+})
 </script>
