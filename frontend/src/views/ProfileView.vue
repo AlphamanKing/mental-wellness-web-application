@@ -76,9 +76,9 @@
               <button
                 type="submit"
                 class="px-6 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
-                :disabled="profileStore.loading"
+                :disabled="isUpdating"
               >
-                <span v-if="profileStore.loading">Updating...</span>
+                <span v-if="isUpdating">Updating...</span>
                 <span v-else>Save Changes</span>
               </button>
             </div>
@@ -235,270 +235,347 @@
         </div>
       </div>
     </div>
-
-    <!-- Notification Toast -->
-    <div 
-      v-if="notification.show" 
-      class="fixed bottom-4 right-4 px-6 py-3 rounded-md shadow-lg transition-all duration-300"
-      :class="notification.type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'"
-    >
-      {{ notification.message }}
-    </div>
   </div>
 </template>
 
-<script>
-import { ref, computed, onMounted } from 'vue'
-import { useAuthStore } from '../store/auth'
+<script setup>
+import { ref, onMounted, computed, reactive } from 'vue'
+import { getAuth, updatePassword, reauthenticateWithCredential, EmailAuthProvider, deleteUser } from 'firebase/auth'
 import { useProfileStore } from '../store/profile'
-import { getAuth, EmailAuthProvider, reauthenticateWithCredential, updatePassword, deleteUser } from 'firebase/auth'
+import { useAuthStore } from '../store/auth'
+import { useNotificationStore } from '../store/notification'
+import DefaultProfileImage from '../assets/images/default-profile.png'
+import { auth } from '../firebase'
+import apiClient from '../utils/apiClient'
+import { useLoadingState } from '../utils/useLoadingState'
 
-export default {
-  name: 'ProfileView',
-  setup() {
-    const authStore = useAuthStore()
-    const profileStore = useProfileStore()
-    const auth = getAuth()
-    
-    // User data
-    const displayName = computed(() => authStore.userDisplayName)
-    const email = computed(() => authStore.userEmail)
-    const profileImage = ref(authStore.userPhotoURL || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(displayName.value) + '&background=6366f1&color=fff')
-    const stats = ref(null)
-    
-    // Form data
-    const form = ref({
-      displayName: displayName.value,
-      email: email.value,
-      bio: ''
-    })
-    
-    // Password change form
-    const passwordForm = ref({
-      currentPassword: '',
-      newPassword: '',
-      confirmPassword: ''
-    })
-    
-    // UI state
-    const passwordLoading = ref(false)
-    const deleteLoading = ref(false)
-    const showPasswordModal = ref(false)
-    const showDeleteModal = ref(false)
-    const fileInput = ref(null)
-    const notification = ref({
-      show: false,
-      message: '',
-      type: 'success'
-    })
-    
-    // Load user profile data
-    onMounted(async () => {
-      if (authStore.userId) {
+// Store instances
+const profileStore = useProfileStore()
+const authStore = useAuthStore()
+const notificationStore = useNotificationStore()
+
+// Loading state manager
+const { executeWithLoading, isLoading } = useLoadingState({
+  timeout: 20000,  // 20 second timeout for uploads
+  maxRetries: 1    // Only retry once
+})
+
+// State
+const profileData = ref(null)
+const initialData = ref({
+  displayName: '',
+  email: '',
+  bio: ''
+})
+const stats = ref(null)
+const loading = ref(true)
+const isUpdating = ref(false)
+const showPasswordModal = ref(false)
+const showDeleteModal = ref(false)
+const fileInput = ref(null)
+const passwordLoading = ref(false)
+const deleteLoading = ref(false)
+
+// Form data
+const form = ref({
+  displayName: '',
+  email: '',
+  bio: ''
+})
+
+// Password form
+const passwordForm = ref({
+  currentPassword: '',
+  newPassword: '',
+  confirmPassword: ''
+})
+
+// Computed properties
+const displayName = computed(() => form.value.displayName || 'User')
+const email = computed(() => form.value.email || '')
+const profileImage = computed(() => profileData.value?.photoURL || DefaultProfileImage)
+
+// Show notification
+const showNotification = (message, type = 'success') => {
+  notificationStore.showNotification({
+    message,
+    type
+  })
+}
+
+// Fetch user profile data
+const fetchProfile = async () => {
+  loading.value = true
+  
+  try {
+    // Fetch profile and stats in parallel
+    await Promise.allSettled([
+      executeWithLoading('profile', async () => {
+        profileData.value = await profileStore.fetchUserProfile()
+        
+        // Set initial form data
+        form.value = {
+          displayName: profileData.value.displayName || '',
+          email: profileData.value.email || '',
+          bio: profileData.value.bio || ''
+        }
+        
+        // Save initial data for comparison
+        initialData.value = { ...form.value }
+      }),
+      
+      executeWithLoading('stats', async () => {
         try {
-          // Fetch user profile
-          await profileStore.fetchUserProfile()
-          
-          // Update form with profile data
-          form.value.bio = profileStore.userBio
-          
-          // Update profile image if available
-          if (profileStore.profile?.photoURL) {
-            profileImage.value = profileStore.profile.photoURL
-          }
-          
-          // Fetch user stats
-          await profileStore.fetchUserStats()
-          stats.value = profileStore.userStats
+          stats.value = await profileStore.fetchUserStats()
         } catch (error) {
-          console.error('Error loading user profile:', error)
-          showNotification('Failed to load profile data', 'error')
+          console.error('Error fetching stats:', error)
         }
-      }
+      })
+    ]);
+  } catch (error) {
+    console.error('Error fetching profile:', error)
+    showNotification('Failed to load profile', 'error')
+  } finally {
+    loading.value = false
+  }
+}
+
+// Trigger file input click
+const triggerFileInput = () => {
+  fileInput.value.click()
+}
+
+// Handle profile image change
+const handleImageChange = async (event) => {
+  const file = event.target.files[0]
+  if (!file) return
+  
+  // Check file type and size
+  if (!file.type.startsWith('image/')) {
+    showNotification('Please select an image file', 'error')
+    return
+  }
+  
+  if (file.size > 2 * 1024 * 1024) { // 2MB limit
+    showNotification('Image size should be less than 2MB', 'error')
+    return
+  }
+  
+  try {
+    // Show uploading notification
+    showNotification('Uploading profile picture...', 'info')
+    
+    // Use the loading state manager for better error handling
+    const downloadURL = await executeWithLoading('profileImage', async () => {
+      // Create FormData for the image upload
+      const formData = new FormData()
+      formData.append('profileImage', file)
+      
+      // Upload through API client to handle auth and error handling
+      const response = await apiClient.post('/api/user/profile/image', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        },
+      })
+      
+      // Return the image URL
+      return response.imageUrl
     })
     
-    // Show notification
-    const showNotification = (message, type = 'success') => {
-      notification.value = {
-        show: true,
-        message,
-        type
-      }
-      
-      setTimeout(() => {
-        notification.value.show = false
-      }, 3000)
+    // Update local state
+    if (profileData.value) {
+      profileData.value.photoURL = downloadURL
     }
     
-    // Trigger file input click
-    const triggerFileInput = () => {
-      fileInput.value.click()
-    }
+    // Force UI update in any components that use the user's profile image
+    document.dispatchEvent(new CustomEvent('user-profile-updated', {
+      detail: {
+        displayName: displayName.value,
+        photoURL: downloadURL
+      }
+    }))
     
-    // Handle profile image change
-    const handleImageChange = async (event) => {
-      const file = event.target.files[0]
-      if (!file) return
-      
-      // Check file type and size
-      if (!file.type.startsWith('image/')) {
-        showNotification('Please select an image file', 'error')
-        return
-      }
-      
-      if (file.size > 5 * 1024 * 1024) { // 5MB limit
-        showNotification('Image size should be less than 5MB', 'error')
-        return
-      }
-      
-      try {
-        // Upload profile image using the store
-        const downloadURL = await profileStore.uploadProfileImage(file)
-        
-        // Update local state
-        profileImage.value = downloadURL
-        
-        showNotification('Profile picture updated successfully')
-      } catch (error) {
-        console.error('Error updating profile picture:', error)
-        showNotification('Failed to update profile picture', 'error')
+    // Refresh profile data to ensure consistency
+    apiClient.clearCache('/api/user/profile')
+    
+    showNotification('Profile picture updated successfully', 'success')
+  } catch (error) {
+    console.error('Error updating profile picture:', error)
+    
+    // Provide a more specific error message
+    let errorMessage = 'Failed to update profile picture'
+    
+    if (error.message) {
+      if (error.message.includes('Please select')) {
+        errorMessage = error.message
+      } else if (error.message.includes('size')) {
+        errorMessage = error.message
+      } else if (error.message.includes('network')) {
+        errorMessage = 'Network error. Check your connection and try again.'
+      } else if (error.message.includes('timeout')) {
+        errorMessage = 'Upload timed out. Please try again with a smaller image.'
+      } else {
+        errorMessage = `Error: ${error.message}`
       }
     }
     
-    // Update profile
-    const updateProfile = async () => {
-      if (!form.value.displayName.trim()) {
-        showNotification('Display name cannot be empty', 'error')
-        return
-      }
-      
-      try {
-        // Update profile using the store
-        await profileStore.updateUserProfile({
-          displayName: form.value.displayName,
-          bio: form.value.bio
-        })
-        
-        // Update auth store
-        authStore.setUser(auth.currentUser)
-        
-        showNotification('Profile updated successfully')
-      } catch (error) {
-        console.error('Error updating profile:', error)
-        showNotification('Failed to update profile', 'error')
-      }
-    }
+    showNotification(errorMessage, 'error')
     
-    // Change password
-    const changePassword = async () => {
-      // Validate passwords
-      if (!passwordForm.value.currentPassword) {
-        showNotification('Current password is required', 'error')
-        return
-      }
-      
-      if (!passwordForm.value.newPassword) {
-        showNotification('New password is required', 'error')
-        return
-      }
-      
-      if (passwordForm.value.newPassword !== passwordForm.value.confirmPassword) {
-        showNotification('New passwords do not match', 'error')
-        return
-      }
-      
-      if (passwordForm.value.newPassword.length < 6) {
-        showNotification('Password must be at least 6 characters', 'error')
-        return
-      }
-      
-      try {
-        passwordLoading.value = true
-        
-        // Re-authenticate user
-        const credential = EmailAuthProvider.credential(
-          auth.currentUser.email,
-          passwordForm.value.currentPassword
-        )
-        
-        await reauthenticateWithCredential(auth.currentUser, credential)
-        
-        // Update password
-        await updatePassword(auth.currentUser, passwordForm.value.newPassword)
-        
-        // Reset form and close modal
-        passwordForm.value = {
-          currentPassword: '',
-          newPassword: '',
-          confirmPassword: ''
-        }
-        
-        showPasswordModal.value = false
-        showNotification('Password changed successfully')
-      } catch (error) {
-        console.error('Error changing password:', error)
-        
-        if (error.code === 'auth/wrong-password') {
-          showNotification('Current password is incorrect', 'error')
-        } else {
-          showNotification('Failed to change password', 'error')
-        }
-      } finally {
-        passwordLoading.value = false
-      }
-    }
-    
-    // Confirm delete account
-    const confirmDeleteAccount = () => {
-      showDeleteModal.value = true
-    }
-    
-    // Delete account
-    const deleteAccount = async () => {
-      try {
-        deleteLoading.value = true
-        
-        // Delete user from Firebase Auth
-        await deleteUser(auth.currentUser)
-        
-        // User will be automatically logged out and redirected to login page
-        showNotification('Account deleted successfully')
-      } catch (error) {
-        console.error('Error deleting account:', error)
-        
-        if (error.code === 'auth/requires-recent-login') {
-          showNotification('Please log out and log back in to delete your account', 'error')
-        } else {
-          showNotification('Failed to delete account', 'error')
-        }
-        
-        showDeleteModal.value = false
-      } finally {
-        deleteLoading.value = false
-      }
-    }
-    
-    return {
-      displayName,
-      email,
-      profileImage,
-      form,
-      passwordForm,
-      profileStore,
-      stats,
-      passwordLoading,
-      deleteLoading,
-      showPasswordModal,
-      showDeleteModal,
-      fileInput,
-      notification,
-      triggerFileInput,
-      handleImageChange,
-      updateProfile,
-      changePassword,
-      confirmDeleteAccount,
-      deleteAccount
+    // Clear the file input to allow retrying with the same file
+    if (fileInput.value) {
+      fileInput.value.value = null
     }
   }
 }
+
+// Update profile
+const updateProfile = async () => {
+  if (!form.value.displayName.trim()) {
+    showNotification('Display name cannot be empty', 'error')
+    return
+  }
+  
+  try {
+    isUpdating.value = true
+    
+    // Only update if something has changed
+    if (
+      (form.value.displayName !== initialData.value.displayName || 
+       form.value.bio !== initialData.value.bio)
+    ) {
+      // Update profile using the store
+      await profileStore.updateUserProfile({
+        displayName: form.value.displayName,
+        bio: form.value.bio
+      })
+      
+      // Update auth store with fresh user data
+      authStore.setUser({
+        ...auth.currentUser,
+        displayName: form.value.displayName
+      })
+      
+      // Update initial data to match current form data
+      initialData.value = { ...form.value }
+      
+      // Update local state
+      if (profileData.value) {
+        profileData.value.displayName = form.value.displayName
+        profileData.value.bio = form.value.bio
+      }
+      
+      showNotification('Profile updated successfully')
+      
+      // Force UI update in any components that use the user's display name
+      document.dispatchEvent(new CustomEvent('user-profile-updated', {
+        detail: {
+          displayName: form.value.displayName,
+          photoURL: profileImage.value
+        }
+      }))
+    } else {
+      // No changes made
+      showNotification('No changes to save')
+    }
+  } catch (error) {
+    console.error('Error updating profile:', error)
+    showNotification('Failed to update profile', 'error')
+  } finally {
+    isUpdating.value = false
+  }
+}
+
+// Change password
+const changePassword = async () => {
+  // Validate passwords
+  if (!passwordForm.value.currentPassword) {
+    showNotification('Current password is required', 'error')
+    return
+  }
+  
+  if (!passwordForm.value.newPassword) {
+    showNotification('New password is required', 'error')
+    return
+  }
+  
+  if (passwordForm.value.newPassword !== passwordForm.value.confirmPassword) {
+    showNotification('New passwords do not match', 'error')
+    return
+  }
+  
+  if (passwordForm.value.newPassword.length < 6) {
+    showNotification('Password must be at least 6 characters', 'error')
+    return
+  }
+  
+  try {
+    passwordLoading.value = true
+    
+    // Re-authenticate user
+    const credential = EmailAuthProvider.credential(
+      auth.currentUser.email,
+      passwordForm.value.currentPassword
+    )
+    
+    await reauthenticateWithCredential(auth.currentUser, credential)
+    
+    // Update password
+    await updatePassword(auth.currentUser, passwordForm.value.newPassword)
+    
+    // Reset form and close modal
+    passwordForm.value = {
+      currentPassword: '',
+      newPassword: '',
+      confirmPassword: ''
+    }
+    
+    showPasswordModal.value = false
+    showNotification('Password changed successfully')
+  } catch (error) {
+    console.error('Error changing password:', error)
+    
+    if (error.code === 'auth/wrong-password') {
+      showNotification('Current password is incorrect', 'error')
+    } else {
+      showNotification('Failed to change password', 'error')
+    }
+  } finally {
+    passwordLoading.value = false
+  }
+}
+
+// Confirm delete account
+const confirmDeleteAccount = () => {
+  showDeleteModal.value = true
+}
+
+// Delete account
+const deleteAccount = async () => {
+  try {
+    deleteLoading.value = true
+    
+    // Delete user from Firebase Auth
+    await deleteUser(auth.currentUser)
+    
+    // User will be automatically logged out and redirected to login page
+    showNotification('Account deleted successfully')
+  } catch (error) {
+    console.error('Error deleting account:', error)
+    
+    if (error.code === 'auth/requires-recent-login') {
+      showNotification('Please log out and log back in to delete your account', 'error')
+    } else {
+      showNotification('Failed to delete account', 'error')
+    }
+    
+    showDeleteModal.value = false
+  } finally {
+    deleteLoading.value = false
+  }
+}
+
+// Fetch user profile data on mount
+onMounted(async () => {
+  await fetchProfile()
+})
 </script>

@@ -395,12 +395,26 @@ const handleClickOutside = (event) => {
   }
 }
 
+// Handle profile update events
+const handleProfileUpdate = (event) => {
+  // Force refresh of auth store data
+  if (event.detail?.displayName) {
+    authStore.setUser({
+      ...authStore.user,
+      displayName: event.detail.displayName,
+      photoURL: event.detail.photoURL || authStore.userPhotoURL
+    })
+  }
+}
+
 // Proper event listener cleanup
 onMounted(() => {
   document.addEventListener('click', handleClickOutside)
+  document.addEventListener('user-profile-updated', handleProfileUpdate)
 })
 
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
+  document.removeEventListener('user-profile-updated', handleProfileUpdate)
 })
 </script>

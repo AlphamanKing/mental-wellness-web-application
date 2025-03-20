@@ -1,6 +1,7 @@
 import { initializeApp } from 'firebase/app'
 import { getAuth, GoogleAuthProvider } from 'firebase/auth'
 import { getFirestore } from 'firebase/firestore'
+import { getStorage, connectStorageEmulator } from 'firebase/storage'
 
 // Firebase configuration
 const firebaseConfig = {
@@ -22,6 +23,12 @@ if (missingVars.length > 0) {
   console.error('Please check your .env file and make sure all Firebase variables are defined.');
 }
 
+// Storage bucket specific validation
+if (firebaseConfig.storageBucket && !firebaseConfig.storageBucket.includes('firebasestorage.app')) {
+  console.warn('Storage bucket may be misconfigured. Expected format: project-id.appspot.com');
+  console.warn('Current value:', firebaseConfig.storageBucket);
+}
+
 // Initialize Firebase
 const app = initializeApp(firebaseConfig)
 
@@ -31,7 +38,10 @@ const auth = getAuth(app)
 // Initialize Firestore
 const db = getFirestore(app)
 
+// Initialize Storage with proper error handling
+const storage = getStorage(app);
+
 // Create Google Auth Provider
 const googleProvider = new GoogleAuthProvider()
 
-export { app, auth, db, googleProvider }
+export { app, auth, db, storage, googleProvider }

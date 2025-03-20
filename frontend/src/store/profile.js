@@ -1,7 +1,8 @@
 import { defineStore } from 'pinia'
 import { getAuth, updateProfile } from 'firebase/auth'
 import { getFirestore, doc, setDoc } from 'firebase/firestore'
-import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage'
+import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage'
+import { auth, db, storage } from '../firebase'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'
 
@@ -93,43 +94,77 @@ export const useProfileStore = defineStore('profile', {
     },
     
     async uploadProfileImage(file) {
-      this.loading = true
-      this.error = null
+      this.loading = true;
+      this.error = null;
       
-      try {
-        const auth = getAuth()
-        const storage = getStorage()
-        const db = getFirestore()
-        
-        // Upload image to Firebase Storage
-        const imageRef = storageRef(storage, `profile_images/${auth.currentUser.uid}/${Date.now()}_${file.name}`)
-        await uploadBytes(imageRef, file)
-        
-        // Get download URL
-        const downloadURL = await getDownloadURL(imageRef)
-        
-        // Update profile image in Firebase Auth
-        await updateProfile(auth.currentUser, {
-          photoURL: downloadURL
-        })
-        
-        // Update profile image in Firestore
-        await setDoc(doc(db, 'users', auth.currentUser.uid), {
-          photoURL: downloadURL
-        }, { merge: true })
-        
-        // Update local profile data
-        if (this.profile) {
-          this.profile.photoURL = downloadURL
+      return new Promise((resolve, reject) => {
+        try {
+          console.log("Starting profile image upload");
+          
+          // Validate file
+          if (!file || !file.type.startsWith('image/')) {
+            this.loading = false;
+            reject(new Error('Please select a valid image file'));
+            return;
+          }
+          
+          // Check file size (max 2MB)
+          if (file.size > 2 * 1024 * 1024) {
+            this.loading = false;
+            reject(new Error('Image size should be less than 2MB'));
+            return;
+          }
+          
+          // Read the file as a data URL (base64)
+          const reader = new FileReader();
+          
+          reader.onload = async (e) => {
+            try {
+              const base64Image = e.target.result;
+              console.log("Image read successfully, length:", base64Image.length);
+              
+              // Update profile image in Firebase Auth
+              await updateProfile(auth.currentUser, {
+                photoURL: base64Image
+              });
+              
+              // Update profile image in Firestore
+              await setDoc(doc(db, 'users', auth.currentUser.uid), {
+                photoURL: base64Image
+              }, { merge: true });
+              
+              // Update local profile data
+              if (this.profile) {
+                this.profile.photoURL = base64Image;
+              }
+              
+              console.log("Profile image updated successfully");
+              this.loading = false;
+              resolve(base64Image);
+            } catch (error) {
+              console.error('Error updating profile with base64 image:', error);
+              this.error = error.message;
+              this.loading = false;
+              reject(error);
+            }
+          };
+          
+          reader.onerror = (error) => {
+            console.error('Error reading file:', error);
+            this.error = 'Failed to read the image file';
+            this.loading = false;
+            reject(new Error('Failed to read the image file'));
+          };
+          
+          // Start reading the file
+          reader.readAsDataURL(file);
+        } catch (error) {
+          console.error('Profile image upload error:', error);
+          this.error = error.message;
+          this.loading = false;
+          reject(error);
         }
-        
-        return downloadURL
-      } catch (error) {
-        this.error = error.message
-        throw error
-      } finally {
-        this.loading = false
-      }
+      });
     },
     
     async fetchUserStats() {

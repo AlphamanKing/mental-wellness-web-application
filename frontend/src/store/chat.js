@@ -3,6 +3,7 @@ import { collection, doc, getDoc, getDocs, query, orderBy, onSnapshot, addDoc, s
 import { db } from '../firebase'
 import { useAuthStore } from './auth'
 import axios from 'axios'
+import apiClient from '../utils/apiClient'
 
 export const useChatStore = defineStore('chat', {
   state: () => ({
@@ -21,6 +22,21 @@ export const useChatStore = defineStore('chat', {
   },
   
   actions: {
+    // Set conversations directly (used by dashboard)
+    setConversations(conversations) {
+      if (Array.isArray(conversations)) {
+        this.conversations = conversations.map(conversation => ({
+          ...conversation,
+          created_at: conversation.created_at?._seconds 
+            ? new Date(conversation.created_at._seconds * 1000) 
+            : new Date(conversation.created_at),
+          updated_at: conversation.updated_at?._seconds 
+            ? new Date(conversation.updated_at._seconds * 1000)
+            : new Date(conversation.updated_at)
+        }));
+      }
+    },
+    
     async fetchConversations() {
       this.loading = true
       this.error = null

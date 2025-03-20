@@ -215,8 +215,57 @@ const entries = computed(() => journalStore.journalEntries)
 
 // Methods
 const formatDate = (date) => {
-  if (!date) return ''
-  return format(new Date(date), 'MMMM d, yyyy h:mm a')
+  if (!date) return 'No date';
+  
+  try {
+    // Handle Firebase Timestamp objects
+    if (date && typeof date === 'object' && date._seconds) {
+      return format(new Date(date._seconds * 1000), 'MMMM d, yyyy h:mm a');
+    }
+    
+    // Handle string dates
+    if (typeof date === 'string') {
+      // Check if it's a valid date string
+      const parsed = new Date(date);
+      if (isNaN(parsed.getTime())) {
+        return 'Invalid date';
+      }
+      return format(parsed, 'MMMM d, yyyy h:mm a');
+    }
+    
+    // Handle Date objects
+    if (date instanceof Date) {
+      if (isNaN(date.getTime())) {
+        return 'Invalid date';
+      }
+      return format(date, 'MMMM d, yyyy h:mm a');
+    }
+    
+    // Handle timestamp in milliseconds
+    if (typeof date === 'number') {
+      return format(new Date(date), 'MMMM d, yyyy h:mm a');
+    }
+    
+    // Handle created_at coming from API with different format
+    if (date && typeof date === 'object') {
+      // Try to handle any other object that might have a timestamp
+      if (date.seconds) {
+        return format(new Date(date.seconds * 1000), 'MMMM d, yyyy h:mm a');
+      }
+      
+      // Try with toDate() method (Firestore timestamp)
+      if (typeof date.toDate === 'function') {
+        return format(date.toDate(), 'MMMM d, yyyy h:mm a');
+      }
+    }
+    
+    // If we get here, we don't know how to format the date
+    console.warn('Unknown date format:', date);
+    return 'Unknown date format';
+  } catch (error) {
+    console.warn('Date formatting error:', error);
+    return 'Date error';
+  }
 }
 
 const submitJournalEntry = async () => {

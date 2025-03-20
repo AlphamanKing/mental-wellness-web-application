@@ -312,8 +312,69 @@ const filteredGoals = computed(() => {
 
 // Methods
 const formatDate = (date) => {
-  if (!date) return ''
-  return format(new Date(date), 'MMM d, yyyy')
+  if (!date) return 'No date';
+  
+  try {
+    // Handle Firebase Timestamp objects
+    if (date && typeof date === 'object' && date._seconds) {
+      return format(new Date(date._seconds * 1000), 'MMM d, yyyy');
+    }
+    
+    // Handle string dates
+    if (typeof date === 'string') {
+      // Check if it's a valid date string
+      const parsed = new Date(date);
+      if (isNaN(parsed.getTime())) {
+        console.warn('Invalid date string:', date);
+        return 'Invalid date';
+      }
+      return format(parsed, 'MMM d, yyyy');
+    }
+    
+    // Handle Date objects
+    if (date instanceof Date) {
+      if (isNaN(date.getTime())) {
+        console.warn('Invalid Date object');
+        return 'Invalid date';
+      }
+      return format(date, 'MMM d, yyyy');
+    }
+    
+    // Handle timestamp in milliseconds
+    if (typeof date === 'number') {
+      return format(new Date(date), 'MMM d, yyyy');
+    }
+    
+    // Handle other object formats
+    if (date && typeof date === 'object') {
+      // Try to handle any other object that might have a timestamp
+      if (date.seconds) {
+        return format(new Date(date.seconds * 1000), 'MMM d, yyyy');
+      }
+      
+      // Try with toDate() method (Firestore timestamp)
+      if (typeof date.toDate === 'function') {
+        return format(date.toDate(), 'MMM d, yyyy');
+      }
+      
+      // Try with target_date
+      if (date.target_date) {
+        return formatDate(date.target_date);
+      }
+      
+      // Try with due_date
+      if (date.due_date) {
+        return formatDate(date.due_date);
+      }
+    }
+    
+    // If we get here, we don't know how to format the date
+    console.warn('Unknown date format:', date);
+    return 'Unknown date format';
+  } catch (error) {
+    console.warn('Date formatting error:', error);
+    return 'Date error';
+  }
 }
 
 const getCategoryClass = (category) => {
@@ -340,12 +401,41 @@ const toggleGoalCompletion = async (goal) => {
 }
 
 const editGoal = (goal) => {
-  editingGoal.value = goal
-  goalTitle.value = goal.title
-  goalDescription.value = goal.description || ''
-  goalCategory.value = goal.category
-  goalDueDate.value = goal.due_date ? format(new Date(goal.due_date), 'yyyy-MM-dd') : ''
-  showGoalForm.value = true
+  editingGoal.value = goal;
+  goalTitle.value = goal.title;
+  goalDescription.value = goal.description || '';
+  goalCategory.value = goal.category || '';
+  
+  // Safely handle due_date formatting
+  try {
+    if (goal.target_date) {
+      // Handle different date formats
+      let dueDate;
+      if (typeof goal.target_date === 'string') {
+        dueDate = new Date(goal.target_date);
+      } else if (goal.target_date instanceof Date) {
+        dueDate = goal.target_date;
+      } else if (typeof goal.target_date === 'object' && goal.target_date._seconds) {
+        dueDate = new Date(goal.target_date._seconds * 1000);
+      } else {
+        console.warn('Unknown date format, using current date');
+        dueDate = new Date();
+      }
+      
+      if (!isNaN(dueDate.getTime())) {
+        goalDueDate.value = format(dueDate, 'yyyy-MM-dd');
+      } else {
+        goalDueDate.value = '';
+      }
+    } else {
+      goalDueDate.value = '';
+    }
+  } catch (error) {
+    console.error('Error formatting due date:', error);
+    goalDueDate.value = '';
+  }
+  
+  showGoalForm.value = true;
 }
 
 const closeGoalForm = () => {
@@ -358,29 +448,32 @@ const closeGoalForm = () => {
 }
 
 const submitGoal = async () => {
-  if (!goalTitle.value.trim() || !goalCategory.value) return
+  if (!goalTitle.value.trim() || !goalCategory.value) return;
   
-  submitting.value = true
+  submitting.value = true;
   
   try {
+    // Convert form values to a proper goal object
     const goalData = {
       title: goalTitle.value.trim(),
       description: goalDescription.value.trim(),
       category: goalCategory.value,
-      due_date: goalDueDate.value ? new Date(goalDueDate.value) : null
-    }
+      target_date: goalDueDate.value ? goalDueDate.value : null
+    };
+    
+    console.log('Submitting goal data:', goalData);
     
     if (editingGoal.value) {
-      await goalsStore.updateGoal(editingGoal.value.id, goalData)
+      await goalsStore.updateGoal(editingGoal.value.id, goalData);
     } else {
-      await goalsStore.createGoal(goalData)
+      await goalsStore.createGoal(goalData);
     }
     
-    closeGoalForm()
+    closeGoalForm();
   } catch (error) {
-    console.error('Error submitting goal:', error)
+    console.error('Error submitting goal:', error);
   } finally {
-    submitting.value = false
+    submitting.value = false;
   }
 }
 

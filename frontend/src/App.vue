@@ -11,6 +11,9 @@
     </main>
     
     <AppFooter />
+    
+    <!-- Global notifications -->
+    <NotificationsContainer />
   </div>
 </template>
 
@@ -22,6 +25,7 @@ import { auth } from './firebase'
 import { useAuthStore } from './store/auth'
 import AppHeader from './components/layout/AppHeader.vue'
 import AppFooter from './components/layout/AppFooter.vue'
+import NotificationsContainer from './components/NotificationsContainer.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()

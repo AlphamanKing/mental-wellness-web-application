@@ -217,8 +217,62 @@ const moods = computed(() => moodStore.moodHistory)
 
 // Methods
 const formatDate = (date) => {
-  if (!date) return ''
-  return format(new Date(date), 'MMM d, yyyy h:mm a')
+  if (!date) return 'No date';
+  
+  try {
+    // Handle Firebase Timestamp objects
+    if (date && typeof date === 'object' && date._seconds) {
+      return format(new Date(date._seconds * 1000), 'MMM d, yyyy h:mm a');
+    }
+    
+    // Handle string dates
+    if (typeof date === 'string') {
+      // Check if it's a valid date string
+      const parsed = new Date(date);
+      if (isNaN(parsed.getTime())) {
+        return 'Invalid date';
+      }
+      return format(parsed, 'MMM d, yyyy h:mm a');
+    }
+    
+    // Handle Date objects
+    if (date instanceof Date) {
+      if (isNaN(date.getTime())) {
+        return 'Invalid date';
+      }
+      return format(date, 'MMM d, yyyy h:mm a');
+    }
+    
+    // Handle timestamp in milliseconds
+    if (typeof date === 'number') {
+      return format(new Date(date), 'MMM d, yyyy h:mm a');
+    }
+    
+    // Handle created_at coming from API with different format
+    if (date && typeof date === 'object') {
+      // Try to handle any other object that might have a timestamp
+      if (date.seconds) {
+        return format(new Date(date.seconds * 1000), 'MMM d, yyyy h:mm a');
+      }
+      
+      // Try with toDate() method (Firestore timestamp)
+      if (typeof date.toDate === 'function') {
+        return format(date.toDate(), 'MMM d, yyyy h:mm a');
+      }
+      
+      // Try with created_at
+      if (date.created_at) {
+        return formatDate(date.created_at);
+      }
+    }
+    
+    // If we get here, we don't know how to format the date
+    console.warn('Unknown date format:', date);
+    return 'Unknown date format';
+  } catch (error) {
+    console.warn('Date formatting error:', error);
+    return 'Date error';
+  }
 }
 
 const getMoodEmoji = (score) => {
@@ -278,20 +332,30 @@ const renderChart = () => {
     chartInstance.value.destroy()
   }
   
-  if (!moodChart.value || moods.value.length === 0) return
+  if (!moodChart.value) return
+  
+  const sortedMoods = [...moods.value].sort((a, b) => {
+    return new Date(a.timestamp) - new Date(b.timestamp)
+  })
+  
+  // If there are no moods, don't try to render the chart
+  if (sortedMoods.length === 0) {
+    console.log('No mood data available to render chart');
+    return;
+  }
+  
+  const labels = sortedMoods.map(mood => {
+    return format(new Date(mood.timestamp), 'MMM d')
+  })
+  
+  const data = sortedMoods.map(mood => mood.score)
   
   const ctx = moodChart.value.getContext('2d')
   
-  // Prepare data for chart
-  const sortedMoods = [...moods.value].sort((a, b) => a.timestamp - b.timestamp)
-  
-  const labels = sortedMoods.map(mood => format(new Date(mood.timestamp), 'MMM d'))
-  const data = sortedMoods.map(mood => mood.score)
-  
-  // Define gradient for chart
-  const gradient = ctx.createLinearGradient(0, 0, 0, 400)
+  // Create gradient
+  const gradient = ctx.createLinearGradient(0, 0, 0, 200)
   gradient.addColorStop(0, 'rgba(14, 165, 233, 0.5)')
-  gradient.addColorStop(1, 'rgba(14, 165, 233, 0.0)')
+  gradient.addColorStop(1, 'rgba(14, 165, 233, 0)')
   
   chartInstance.value = new Chart(ctx, {
     type: 'line',
@@ -353,17 +417,45 @@ const renderChart = () => {
 
 // Fetch mood data on component mount
 onMounted(async () => {
-  loading.value = true
+  loading.value = true;
   
   try {
-    await moodStore.fetchMoods(selectedPeriod.value)
-    renderChart()
+    // First try to fetch from API
+    await moodStore.fetchMoods(selectedPeriod.value);
+    
+    // Check if we got any data
+    if (moods.value && moods.value.length > 0) {
+      renderChart();
+    } else {
+      console.log('No mood data available on first load');
+      
+      // Set some sample data if no data available (for new users)
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Adding sample mood data in development mode');
+        // This is just for development, to show something in the chart
+        const sampleMoods = [
+          { score: 3, timestamp: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000), note: 'Feeling okay' },
+          { score: 4, timestamp: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), note: 'Good day' },
+          { score: 2, timestamp: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000), note: 'Tough day' },
+          { score: 3, timestamp: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), note: 'Feeling better' },
+          { score: 5, timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), note: 'Great day!' },
+          { score: 4, timestamp: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), note: 'Productive day' },
+        ];
+        moodStore.setMoods(sampleMoods);
+        renderChart();
+      }
+    }
   } catch (error) {
-    console.error('Error fetching moods:', error)
+    console.error('Error fetching moods:', error);
+    
+    // Try to render whatever data we might have
+    if (moods.value && moods.value.length > 0) {
+      renderChart();
+    }
   } finally {
-    loading.value = false
+    loading.value = false;
   }
-})
+});
 
 // Watch for time period changes
 watch(selectedPeriod, async (newPeriod) => {

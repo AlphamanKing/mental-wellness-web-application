@@ -1,12 +1,17 @@
 import os
 import sys
-from flask import Flask, request, jsonify
+import logging
+import time
+import uuid
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from dotenv import load_dotenv
+from werkzeug.utils import secure_filename
 import firebase_admin
 from firebase_admin import credentials, firestore, auth
-import logging
+from google.cloud import storage
 
+# Configure logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
@@ -22,7 +27,35 @@ load_dotenv()
 
 # Initialize Flask app
 app = Flask(__name__)
-CORS(app)
+CORS(app, resources={r"/api/*": {"origins": ["http://localhost:3000"]}}, supports_credentials=True)
+
+# Handle CORS pre-flight requests
+@app.before_request
+def handle_preflight():
+    if request.method == "OPTIONS":
+        response = app.make_default_options_response()
+        response.headers.add('Access-Control-Allow-Origin', 'http://localhost:3000')
+        response.headers.add('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+        response.headers.add('Access-Control-Allow-Credentials', 'true')
+        return response
+
+# Handle any errors with CORS headers
+@app.errorhandler(Exception)
+def handle_error(e):
+    response = jsonify({"error": str(e)})
+    response.status_code = 500
+    response.headers.add('Access-Control-Allow-Origin', 'http://localhost:3000')
+    response.headers.add('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+    response.headers.add('Access-Control-Allow-Credentials', 'true')
+    return response
+
+# Create uploads directory if it doesn't exist
+UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads', 'profile_images')
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024  # 5MB limit
 
 # Initialize Firebase Admin SDK
 cred_path = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
@@ -37,12 +70,37 @@ if not os.path.exists(cred_path):
 else:
     cred = credentials.Certificate(cred_path)
     try:
-        firebase_admin.initialize_app(cred)
+        default_app = firebase_admin.initialize_app(cred)
     except ValueError:
         # App already initialized
+        default_app = firebase_admin.get_app()
         pass
-    
+
+# Get Firebase project details from environment if available
+firebase_storage_bucket = os.getenv('VITE_FIREBASE_STORAGE_BUCKET')
+firebase_project_id = os.getenv('VITE_FIREBASE_PROJECT_ID')
+
+logger.info(f"Firebase Storage Bucket from ENV: {firebase_storage_bucket}")
+logger.info(f"Firebase Project ID from ENV: {firebase_project_id}")
+
+# Initialize Firestore client    
 db = firestore.client()
+
+# Initialize Storage client
+try:
+    if os.path.exists(cred_path):
+        storage_client = storage.Client.from_service_account_json(cred_path)
+        logger.info(f"Storage client initialized with project: {storage_client.project}")
+    else:
+        storage_client = None
+        logger.warning("Firebase credentials file not found. Storage client not initialized. File uploads will not work.")
+except Exception as e:
+    storage_client = None
+    logger.error(f"Error initializing storage client: {str(e)}", exc_info=True)
+    logger.warning("File uploads will not work due to storage client initialization failure.")
+
+# Base URL for the server
+SERVER_BASE_URL = os.getenv('SERVER_BASE_URL', 'http://localhost:5000')
 
 @app.route('/', methods=['GET'])
 def index():
@@ -329,6 +387,48 @@ def record_mood():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/mood/recent', methods=['GET'])
+def get_recent_moods():
+    """
+    Endpoint to get recent mood entries for a user
+    """
+    # Verify Firebase token
+    auth_header = request.headers.get('Authorization')
+    if not auth_header:
+        return jsonify({'error': 'No authorization header provided'}), 401
+    
+    user_id = verify_firebase_token(auth_header)
+    if not user_id:
+        return jsonify({'error': 'Invalid or expired token'}), 401
+    
+    # Get limit from query parameters
+    limit = request.args.get('limit', default=5, type=int)
+    
+    try:
+        # Get recent mood entries
+        moods_ref = db.collection('moods').document(user_id).collection('entries')
+        moods_ref = moods_ref.order_by('timestamp', direction=firestore.Query.DESCENDING).limit(limit)
+        moods = moods_ref.stream()
+        
+        result = []
+        for mood in moods:
+            mood_data = mood.to_dict()
+            timestamp = mood_data.get('timestamp')
+            result.append({
+                'id': mood.id,
+                'score': mood_data.get('mood'),
+                'note': mood_data.get('note'),
+                'timestamp': {
+                    '_seconds': timestamp.timestamp() if timestamp else None,
+                    '_nanoseconds': 0
+                }
+            })
+        
+        return jsonify(result), 200
+    
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/moods', methods=['GET'])
 def get_moods():
     """
@@ -358,11 +458,15 @@ def get_moods():
         result = []
         for mood in moods:
             mood_data = mood.to_dict()
+            timestamp = mood_data.get('timestamp')
             result.append({
                 'id': mood.id,
-                'mood': mood_data.get('mood'),
+                'score': mood_data.get('mood'),
                 'note': mood_data.get('note'),
-                'timestamp': mood_data.get('timestamp')
+                'timestamp': {
+                    '_seconds': timestamp.timestamp() if timestamp else None,
+                    '_nanoseconds': 0
+                }
             })
         
         return jsonify(result), 200
@@ -409,6 +513,60 @@ def create_journal():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/journal/entries', methods=['GET'])
+def get_journal_entries():
+    """
+    Endpoint to get journal entries for a user
+    """
+    # Verify Firebase token
+    auth_header = request.headers.get('Authorization')
+    if not auth_header:
+        return jsonify({'error': 'No authorization header provided'}), 401
+    
+    user_id = verify_firebase_token(auth_header)
+    if not user_id:
+        return jsonify({'error': 'Invalid or expired token'}), 401
+    
+    # Get limit from query parameters
+    limit = request.args.get('limit', default=3, type=int)
+    
+    try:
+        # Get journal entries
+        journals_ref = db.collection('journals').document(user_id).collection('entries')
+        journals_ref = journals_ref.order_by('created_at', direction=firestore.Query.DESCENDING).limit(limit)
+        journals = journals_ref.stream()
+        
+        result = []
+        for journal in journals:
+            journal_data = journal.to_dict()
+            created_at = journal_data.get('created_at')
+            updated_at = journal_data.get('updated_at')
+            
+            # Format timestamps consistently
+            created_at_dict = {
+                '_seconds': created_at.timestamp() if created_at else None,
+                '_nanoseconds': 0
+            }
+            
+            updated_at_dict = {
+                '_seconds': updated_at.timestamp() if updated_at else None,
+                '_nanoseconds': 0
+            }
+            
+            result.append({
+                'id': journal.id,
+                'title': journal_data.get('title'),
+                'content': journal_data.get('content'),
+                'share_with_ai': journal_data.get('share_with_ai', False),
+                'created_at': created_at_dict,
+                'updated_at': updated_at_dict
+            })
+        
+        return jsonify(result), 200
+    
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/journals', methods=['GET'])
 def get_journals():
     """
@@ -431,13 +589,27 @@ def get_journals():
         result = []
         for journal in journals:
             journal_data = journal.to_dict()
+            created_at = journal_data.get('created_at')
+            updated_at = journal_data.get('updated_at')
+            
+            # Format timestamps consistently
+            created_at_dict = {
+                '_seconds': created_at.timestamp() if created_at else None,
+                '_nanoseconds': 0
+            }
+            
+            updated_at_dict = {
+                '_seconds': updated_at.timestamp() if updated_at else None,
+                '_nanoseconds': 0
+            }
+            
             result.append({
                 'id': journal.id,
                 'title': journal_data.get('title'),
                 'content': journal_data.get('content'),
                 'share_with_ai': journal_data.get('share_with_ai', False),
-                'created_at': journal_data.get('created_at'),
-                'updated_at': journal_data.get('updated_at')
+                'created_at': created_at_dict,
+                'updated_at': updated_at_dict
             })
         
         return jsonify(result), 200
@@ -461,12 +633,25 @@ def create_goal():
     
     # Get goal data from request
     data = request.get_json()
-    if not data or 'title' not in data or 'description' not in data or 'target_date' not in data:
-        return jsonify({'error': 'Incomplete goal data provided'}), 400
+    if not data:
+        return jsonify({'error': 'No data provided'}), 400
     
-    title = data['title']
-    description = data['description']
-    target_date = data['target_date']
+    # Log received data for debugging
+    logger.debug(f"Received goal data: {data}")
+    
+    # Extract data, checking for both possible key names
+    title = data.get('title')
+    description = data.get('description', '')
+    category = data.get('category', 'Other')
+    
+    # Check for both target_date and due_date keys
+    target_date = data.get('target_date')
+    if target_date is None:
+        target_date = data.get('due_date')
+    
+    # Validate required fields
+    if not title or not target_date:
+        return jsonify({'error': 'Incomplete goal data provided. Title and target_date are required.'}), 400
     
     try:
         # Store goal in Firestore
@@ -474,6 +659,7 @@ def create_goal():
         goal_ref.set({
             'title': title,
             'description': description,
+            'category': category,
             'target_date': target_date,
             'completed': False,
             'created_at': firestore.SERVER_TIMESTAMP,
@@ -483,6 +669,7 @@ def create_goal():
         return jsonify({'success': True, 'id': goal_ref.id}), 200
     
     except Exception as e:
+        logger.error(f"Error creating goal: {str(e)}", exc_info=True)
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/goals', methods=['GET'])
@@ -550,22 +737,46 @@ def update_goal(goal_id):
             return jsonify({'error': 'Goal not found'}), 404
         
         update_data = {}
-        if 'title' in data:
-            update_data['title'] = data['title']
-        if 'description' in data:
-            update_data['description'] = data['description']
-        if 'target_date' in data:
-            update_data['target_date'] = data['target_date']
-        if 'completed' in data:
-            update_data['completed'] = data['completed']
         
+        # Handle each field separately
+        if 'title' in data:
+            update_data['title'] = str(data['title'])
+            
+        if 'description' in data:
+            update_data['description'] = str(data['description'])
+            
+        if 'target_date' in data:
+            # Ensure target_date is a string in YYYY-MM-DD format
+            try:
+                from datetime import datetime
+                if isinstance(data['target_date'], str):
+                    # Try to parse and format the date
+                    date_obj = datetime.strptime(data['target_date'], '%Y-%m-%d')
+                    update_data['target_date'] = date_obj.strftime('%Y-%m-%d')
+                else:
+                    return jsonify({'error': 'target_date must be a string in YYYY-MM-DD format'}), 400
+            except ValueError:
+                return jsonify({'error': 'Invalid target_date format. Use YYYY-MM-DD'}), 400
+                
+        if 'completed' in data:
+            # Ensure completed is a boolean
+            if isinstance(data['completed'], bool):
+                update_data['completed'] = data['completed']
+            else:
+                return jsonify({'error': 'completed must be a boolean'}), 400
+        
+        # Always update the updated_at timestamp
         update_data['updated_at'] = firestore.SERVER_TIMESTAMP
+        
+        # Log the update data for debugging
+        logger.debug(f"Updating goal {goal_id} with data: {update_data}")
         
         goal_ref.update(update_data)
         
         return jsonify({'success': True}), 200
     
     except Exception as e:
+        logger.error(f"Error updating goal: {str(e)}", exc_info=True)
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/user/profile', methods=['GET'])
@@ -703,6 +914,132 @@ def get_user_stats():
         }
         
         return jsonify(stats), 200
+    
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/user/profile/image', methods=['POST'])
+def upload_profile_image():
+    """
+    Endpoint to upload user profile image using local file storage
+    """
+    # Verify Firebase token
+    auth_header = request.headers.get('Authorization')
+    if not auth_header:
+        return jsonify({'error': 'No authorization header provided'}), 401
+    
+    user_id = verify_firebase_token(auth_header)
+    if not user_id:
+        return jsonify({'error': 'Invalid or expired token'}), 401
+    
+    try:
+        # Check if the request has the file part
+        if 'profileImage' not in request.files:
+            return jsonify({'error': 'No file part in the request'}), 400
+        
+        file = request.files['profileImage']
+        
+        # If user does not select file, browser also
+        # submit an empty part without filename
+        if file.filename == '':
+            return jsonify({'error': 'No selected file'}), 400
+        
+        # Check file type
+        if not file.content_type.startswith('image/'):
+            return jsonify({'error': 'Only image files are allowed'}), 400
+        
+        # Create user directory if it doesn't exist
+        user_upload_dir = os.path.join(app.config['UPLOAD_FOLDER'], user_id)
+        os.makedirs(user_upload_dir, exist_ok=True)
+        
+        # Create a unique filename
+        file_extension = os.path.splitext(file.filename)[1]
+        unique_filename = f"{uuid.uuid4()}{file_extension}"
+        filepath = os.path.join(user_upload_dir, unique_filename)
+        
+        # Save the file
+        logger.info(f"Saving file to {filepath}")
+        file.save(filepath)
+        
+        # Generate a URL to access the image
+        image_url = f"{SERVER_BASE_URL}/uploads/profile_images/{user_id}/{unique_filename}"
+        logger.info(f"Image URL: {image_url}")
+        
+        try:
+            # Update user profile in Firebase Auth
+            auth.update_user(
+                user_id,
+                photo_url=image_url
+            )
+            logger.info("Firebase Auth profile updated with new image URL")
+        except Exception as e:
+            logger.error(f"Error updating Firebase Auth profile: {str(e)}", exc_info=True)
+            # Continue even if this fails, as we still have the image URL
+        
+        try:
+            # Update user profile in Firestore
+            user_ref = db.collection('users').document(user_id)
+            user_ref.set({
+                'photoURL': image_url
+            }, merge=True)
+            logger.info("Firestore profile updated with new image URL")
+        except Exception as e:
+            logger.error(f"Error updating Firestore profile: {str(e)}", exc_info=True)
+            # Continue even if this fails, as we still have the image URL
+        
+        return jsonify({
+            'message': 'Profile image uploaded successfully',
+            'imageUrl': image_url
+        }), 200
+    
+    except Exception as e:
+        logger.error(f"Error uploading profile image: {str(e)}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+# Add a route to serve the uploaded images
+@app.route('/uploads/<path:filename>', methods=['GET'])
+def serve_file(filename):
+    """
+    Serve uploaded files
+    """
+    upload_folder = os.path.dirname(app.config['UPLOAD_FOLDER'])
+    return send_from_directory(upload_folder, filename)
+
+@app.route('/api/chat/conversations', methods=['GET'])
+def get_chat_conversations():
+    """
+    Endpoint to get chat conversations for a user
+    """
+    # Verify Firebase token
+    auth_header = request.headers.get('Authorization')
+    if not auth_header:
+        return jsonify({'error': 'No authorization header provided'}), 401
+    
+    user_id = verify_firebase_token(auth_header)
+    if not user_id:
+        return jsonify({'error': 'Invalid or expired token'}), 401
+    
+    # Get limit from query parameters
+    limit = request.args.get('limit', default=3, type=int)
+    
+    try:
+        # Get all conversations for the user
+        conversations_ref = db.collection('conversations').document(user_id).collection('chats')
+        conversations_ref = conversations_ref.order_by('updated_at', direction=firestore.Query.DESCENDING).limit(limit)
+        conversations = conversations_ref.stream()
+        
+        result = []
+        for conv in conversations:
+            conv_data = conv.to_dict()
+            result.append({
+                'id': conv.id,
+                'title': conv_data.get('title', 'Untitled Conversation'),
+                'last_message': conv_data.get('last_message', ''),
+                'created_at': conv_data.get('created_at'),
+                'updated_at': conv_data.get('updated_at')
+            })
+        
+        return jsonify(result), 200
     
     except Exception as e:
         return jsonify({'error': str(e)}), 500

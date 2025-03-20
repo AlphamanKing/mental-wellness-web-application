@@ -12,8 +12,16 @@
             <router-link to="/mood-tracker" class="text-sm text-primary-600 hover:text-primary-500">View all</router-link>
           </div>
           
-          <div v-if="loadingMood" class="flex justify-center py-8">
-            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+          <div v-if="loadingMood" class="space-y-4">
+            <div class="flex items-center space-x-2">
+              <div class="skeleton w-10 h-10 rounded-full"></div>
+              <div class="space-y-2">
+                <div class="skeleton h-4 w-20"></div>
+                <div class="skeleton h-3 w-24"></div>
+              </div>
+            </div>
+            <div class="skeleton h-16 w-full"></div>
+            <div class="skeleton h-10 w-full rounded-md"></div>
           </div>
           
           <div v-else-if="latestMood" class="space-y-4">
@@ -31,14 +39,21 @@
               "{{ latestMood.notes }}"
             </p>
             
-            <router-link to="/mood-tracker/new" class="btn btn-primary w-full">
-              Log Today's Mood
+            <p class="text-sm text-neutral-600 mb-4">Track your emotional wellbeing and identify patterns over time.</p>
+            <router-link to="/mood-tracker" class="mt-auto btn btn-primary w-full flex items-center justify-center">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Log Your Mood
             </router-link>
           </div>
           
           <div v-else class="text-center py-8">
             <p class="text-neutral-600 mb-4">You haven't logged your mood yet</p>
-            <router-link to="/mood-tracker/new" class="btn btn-primary">
+            <router-link to="/mood-tracker" class="btn btn-primary flex items-center justify-center mx-auto">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
               Log Your First Mood
             </router-link>
           </div>
@@ -51,8 +66,12 @@
             <router-link to="/chat" class="text-sm text-primary-600 hover:text-primary-500">View all</router-link>
           </div>
           
-          <div v-if="loadingChat" class="flex justify-center py-8">
-            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+          <div v-if="loadingChat" class="space-y-4">
+            <div class="space-y-2">
+              <div class="skeleton p-3 rounded-lg h-20 w-full"></div>
+              <div class="skeleton p-3 rounded-lg h-20 w-full"></div>
+            </div>
+            <div class="skeleton h-10 w-full rounded-md"></div>
           </div>
           
           <div v-else-if="recentChats && recentChats.length > 0" class="space-y-4">
@@ -68,15 +87,22 @@
               </div>
             </div>
             
-            <router-link to="/chat/new" class="btn btn-primary w-full">
+            <p class="text-sm text-neutral-600 mb-4">Talk to your AI therapist about anything that's on your mind.</p>
+            <router-link to="/chat/new" class="mt-auto btn btn-primary w-full flex items-center justify-center">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+              </svg>
               Start New Conversation
             </router-link>
           </div>
           
           <div v-else class="text-center py-8">
             <p class="text-neutral-600 mb-4">No conversations yet</p>
-            <router-link to="/chat/new" class="btn btn-primary">
-              Start Talking to Your AI Therapist
+            <router-link to="/chat/new" class="btn btn-primary flex items-center justify-center mx-auto">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+              </svg>
+              Start Your First Conversation
             </router-link>
           </div>
         </div>
@@ -88,8 +114,12 @@
             <router-link to="/journal" class="text-sm text-primary-600 hover:text-primary-500">View all</router-link>
           </div>
           
-          <div v-if="loadingJournal" class="flex justify-center py-8">
-            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+          <div v-if="loadingJournal" class="space-y-4">
+            <div class="space-y-2">
+              <div class="skeleton p-3 rounded-lg h-24 w-full"></div>
+              <div class="skeleton p-3 rounded-lg h-24 w-full"></div>
+            </div>
+            <div class="skeleton h-10 w-full rounded-md"></div>
           </div>
           
           <div v-else-if="recentJournalEntries && recentJournalEntries.length > 0" class="space-y-4">
@@ -105,15 +135,77 @@
               </div>
             </div>
             
-            <router-link to="/journal/new" class="btn btn-primary w-full">
+            <p class="text-sm text-neutral-600 mb-4">Record your thoughts, feelings, and experiences in your private journal.</p>
+            <router-link to="/journal/new" class="mt-auto btn btn-primary w-full flex items-center justify-center">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
               Write New Entry
             </router-link>
           </div>
           
           <div v-else class="text-center py-8">
             <p class="text-neutral-600 mb-4">No journal entries yet</p>
-            <router-link to="/journal/new" class="btn btn-primary">
+            <router-link to="/journal/new" class="btn btn-primary flex items-center justify-center mx-auto">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
               Write Your First Entry
+            </router-link>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Quick Actions Section -->
+      <div class="bg-white rounded-xl shadow-soft p-6 mb-8">
+        <h2 class="text-xl font-semibold text-neutral-900 mb-4">Quick Actions</h2>
+        
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <!-- Log Mood Card -->
+          <div v-if="!latestMood" class="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-4 flex flex-col">
+            <div class="flex items-center mb-3">
+              <div class="w-10 h-10 rounded-full bg-blue-200 flex items-center justify-center mr-3">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <h3 class="font-medium text-lg">How are you feeling?</h3>
+            </div>
+            <p class="text-sm text-neutral-600 mb-4">Track your mood to identify patterns and improve your mental wellness.</p>
+            <router-link to="/mood-tracker" class="mt-auto btn btn-primary w-full">
+              Log Your Mood
+            </router-link>
+          </div>
+          
+          <!-- Write Journal Card -->
+          <div v-if="!recentJournalEntries || recentJournalEntries.length === 0" class="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-4 flex flex-col">
+            <div class="flex items-center mb-3">
+              <div class="w-10 h-10 rounded-full bg-purple-200 flex items-center justify-center mr-3">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+              </div>
+              <h3 class="font-medium text-lg">Express Your Thoughts</h3>
+            </div>
+            <p class="text-sm text-neutral-600 mb-4">Journal your thoughts and feelings to gain insight and clarity.</p>
+            <router-link to="/journal/new" class="mt-auto btn btn-primary w-full">
+              Write Journal Entry
+            </router-link>
+          </div>
+          
+          <!-- Set Goal Card -->
+          <div v-if="!activeGoals || activeGoals.length === 0" class="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-4 flex flex-col">
+            <div class="flex items-center mb-3">
+              <div class="w-10 h-10 rounded-full bg-green-200 flex items-center justify-center mr-3">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v11a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+              </div>
+              <h3 class="font-medium text-lg">Set New Goals</h3>
+            </div>
+            <p class="text-sm text-neutral-600 mb-4">Create meaningful goals to guide your personal growth journey.</p>
+            <router-link to="/goals/new" class="mt-auto btn btn-primary w-full">
+              Create New Goal
             </router-link>
           </div>
         </div>
@@ -126,8 +218,22 @@
           <router-link to="/goals" class="text-sm text-primary-600 hover:text-primary-500">View all</router-link>
         </div>
         
-        <div v-if="loadingGoals" class="flex justify-center py-8">
-          <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+        <div v-if="loadingGoals" class="space-y-4">
+          <div class="space-y-3">
+            <div class="flex items-center">
+              <div class="skeleton h-4 w-4 rounded mr-3"></div>
+              <div class="skeleton h-4 w-full"></div>
+            </div>
+            <div class="flex items-center">
+              <div class="skeleton h-4 w-4 rounded mr-3"></div>
+              <div class="skeleton h-4 w-full"></div>
+            </div>
+            <div class="flex items-center">
+              <div class="skeleton h-4 w-4 rounded mr-3"></div>
+              <div class="skeleton h-4 w-full"></div>
+            </div>
+          </div>
+          <div class="skeleton h-10 w-full rounded-md mt-4"></div>
         </div>
         
         <div v-else-if="activeGoals && activeGoals.length > 0" class="space-y-4">
@@ -137,10 +243,10 @@
                 :id="'goal-' + goal.id" 
                 type="checkbox" 
                 :checked="goal.completed" 
-                @change="toggleGoalCompletion(goal.id, !goal.completed)"
+                @change="toggleGoalCompletion(goal)"
                 class="h-4 w-4 text-primary-600 focus:ring-primary-500 border-neutral-300 rounded" 
               />
-              <label :for="'goal-' + goal.id" class="ml-3 block text-sm font-medium text-neutral-900">
+              <label :for="'goal-' + goal.id" class="ml-3 block text-sm text-neutral-700">
                 {{ goal.title }}
                 <span v-if="goal.target_date" class="text-xs text-neutral-500 ml-2">
                   Due: {{ formatDate(goal.target_date) }}
@@ -149,15 +255,21 @@
             </div>
           </div>
           
-          <router-link to="/goals/new" class="btn btn-primary w-full">
+          <router-link to="/goals/new" class="mt-4 btn btn-primary w-full flex items-center justify-center">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
             Add New Goal
           </router-link>
         </div>
         
         <div v-else class="text-center py-8">
           <p class="text-neutral-600 mb-4">No goals set yet</p>
-          <router-link to="/goals/new" class="btn btn-primary">
-            Set Your First Goal
+          <router-link to="/goals/new" class="btn btn-primary flex items-center justify-center mx-auto">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
+            Create Your First Goal
           </router-link>
         </div>
       </div>
@@ -209,13 +321,14 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useAuthStore } from '../store/auth'
 import { useMoodStore } from '../store/mood'
 import { useChatStore } from '../store/chat'
 import { useJournalStore } from '../store/journal'
 import { useGoalsStore } from '../store/goals'
 import { format } from 'date-fns'
+import apiClient from '../utils/apiClient'
 
 // Stores
 const authStore = useAuthStore()
@@ -229,6 +342,15 @@ const loadingMood = ref(true)
 const loadingChat = ref(true)
 const loadingJournal = ref(true)
 const loadingGoals = ref(true)
+const fetchControllers = [] // Store AbortControllers for fetch operations
+
+// Fetch status tracking
+const fetchStatus = ref({
+  mood: { success: false, error: null },
+  chat: { success: false, error: null },
+  journal: { success: false, error: null },
+  goals: { success: false, error: null }
+})
 
 // Computed properties
 const userDisplayName = computed(() => {
@@ -245,7 +367,7 @@ const recentChats = computed(() => {
 })
 
 const recentJournalEntries = computed(() => {
-  return journalStore.entries
+  return journalStore.journalEntries
 })
 
 const activeGoals = computed(() => {
@@ -273,14 +395,30 @@ const resources = ref({
 
 // Methods
 const formatDate = (date) => {
-  if (!date) return ''
+  if (!date) return '';
   
-  // Handle Firebase Timestamp objects
-  if (date._seconds) {
-    date = new Date(date._seconds * 1000)
+  try {
+    // Handle Firebase Timestamp objects
+    if (date && typeof date === 'object' && date._seconds) {
+      return format(new Date(date._seconds * 1000), 'MMM d, yyyy');
+    }
+    
+    // Handle string dates
+    if (typeof date === 'string') {
+      return format(new Date(date), 'MMM d, yyyy');
+    }
+    
+    // Handle Date objects
+    if (date instanceof Date) {
+      return format(date, 'MMM d, yyyy');
+    }
+    
+    // Default fallback
+    return format(new Date(), 'MMM d, yyyy');
+  } catch (error) {
+    console.warn('Date formatting error:', error);
+    return 'Invalid date';
   }
-  
-  return format(new Date(date), 'MMM d, yyyy')
 }
 
 const getMoodEmoji = (score) => {
@@ -304,46 +442,135 @@ const getMoodColor = (score) => {
   return colors[Math.min(Math.max(Math.floor(score) - 1, 0), 4)]
 }
 
-const toggleGoalCompletion = async (goalId, completed) => {
+const toggleGoalCompletion = async (goal) => {
   try {
-    await goalsStore.toggleGoalCompletion(goalId, completed)
+    await goalsStore.toggleGoalCompletion(goal.id, !goal.completed)
   } catch (error) {
     console.error('Error toggling goal completion:', error)
   }
 }
 
 // Fetch data on component mount
-onMounted(async () => {
-  try {
-    await moodStore.fetchMoods()
-  } catch (error) {
-    console.error('Error fetching moods:', error)
-  } finally {
-    loadingMood.value = false
-  }
+onMounted(() => {
+  const controller = new AbortController();
+  const { signal } = controller;
+  fetchControllers.push(controller);
   
-  try {
-    await chatStore.fetchConversations()
-  } catch (error) {
-    console.error('Error fetching conversations:', error)
-  } finally {
-    loadingChat.value = false
-  }
+  // Load all data in parallel using Promise.allSettled
+  Promise.allSettled([
+    // Fetch mood data
+    (async () => {
+      try {
+        loadingMood.value = true;
+        const moodData = await apiClient.get('/api/mood/recent', { 
+          signal, 
+          params: { limit: 5 } 
+        });
+        if (moodData) {
+          moodStore.setMoods(moodData);
+        }
+      } catch (error) {
+        if (error.name !== 'AbortError') {
+          console.error('Error fetching moods:', error);
+        }
+      } finally {
+        loadingMood.value = false;
+      }
+    })(),
+    
+    // Fetch chat data
+    (async () => {
+      try {
+        loadingChat.value = true;
+        const chatData = await apiClient.get('/api/chat/conversations', { 
+          signal,
+          params: { limit: 3 } 
+        });
+        if (chatData) {
+          chatStore.setConversations(chatData);
+        }
+      } catch (error) {
+        if (error.name !== 'AbortError') {
+          console.error('Error fetching chat history:', error);
+        }
+      } finally {
+        loadingChat.value = false;
+      }
+    })(),
+    
+    // Fetch journal entries
+    (async () => {
+      try {
+        loadingJournal.value = true;
+        const journalData = await apiClient.get('/api/journal/entries', { 
+          signal,
+          params: { limit: 3 } 
+        });
+        if (journalData) {
+          journalStore.setJournals(journalData);
+        }
+      } catch (error) {
+        if (error.name !== 'AbortError') {
+          console.error('Error fetching journal entries:', error);
+        }
+      } finally {
+        loadingJournal.value = false;
+      }
+    })(),
+    
+    // Fetch goals data
+    (async () => {
+      try {
+        loadingGoals.value = true;
+        const goalsData = await apiClient.get('/api/goals', { 
+          signal,
+          params: { status: 'active' } 
+        });
+        if (goalsData) {
+          goalsStore.setGoals(goalsData);
+        }
+      } catch (error) {
+        if (error.name !== 'AbortError') {
+          console.error('Error fetching goals:', error);
+        }
+      } finally {
+        loadingGoals.value = false;
+      }
+    })()
+  ]);
+})
+
+// Clean up on component unmount
+onBeforeUnmount(() => {
+  // Abort any ongoing fetch operations
+  fetchControllers.forEach(controller => {
+    if (controller) {
+      controller.abort()
+    }
+  })
   
-  try {
-    await journalStore.fetchEntries()
-  } catch (error) {
-    console.error('Error fetching journal entries:', error)
-  } finally {
-    loadingJournal.value = false
-  }
-  
-  try {
-    await goalsStore.fetchGoals()
-  } catch (error) {
-    console.error('Error fetching goals:', error)
-  } finally {
-    loadingGoals.value = false
-  }
+  // Clear fetch controllers array
+  fetchControllers.length = 0
 })
 </script>
+
+<style scoped>
+/* Skeleton loading animation */
+@keyframes pulse {
+  0% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 0.8;
+  }
+  100% {
+    opacity: 0.6;
+  }
+}
+
+.skeleton {
+  animation: pulse 1.5s infinite;
+  background-color: #e5e7eb;
+  border-radius: 0.375rem;
+}
+</style>
