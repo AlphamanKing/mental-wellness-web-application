@@ -1,5 +1,14 @@
 import { defineStore } from 'pinia'
-import { collection, addDoc, getDocs, query, where, orderBy, serverTimestamp } from 'firebase/firestore'
+import { 
+  collection, 
+  addDoc, 
+  getDocs, 
+  query, 
+  where, 
+  orderBy, 
+  serverTimestamp,
+  Timestamp 
+} from 'firebase/firestore'
 import { db } from '../firebase'
 import { useAuthStore } from './auth'
 import axios from 'axios'
@@ -52,79 +61,45 @@ export const useMoodStore = defineStore('mood', {
       
       try {
         const authStore = useAuthStore();
-        const token = await authStore.user.getIdToken();
+        const userId = authStore.userId;
         
-        // Try to fetch from /api/moods first
-        try {
-          const response = await axios.get('/api/moods', {
-            headers: {
-              'Authorization': `Bearer ${token}`
-            },
-            params: {
-              days: days
-            }
-          });
-          
-          // Process and sort moods by timestamp
-          const processedMoods = response.data.map(mood => ({
-            ...mood,
-            timestamp: mood.timestamp?._seconds 
-              ? new Date(mood.timestamp._seconds * 1000) 
-              : new Date(mood.timestamp)
-          })).sort((a, b) => b.timestamp - a.timestamp);
-          
-          this.moods = processedMoods;
-          this.lastFetch = new Date();
-          
-          return processedMoods;
-        } catch (error) {
-          // If the first endpoint fails, try the alternative endpoint
-          if (error.response?.status === 404) {
-            const response = await axios.get('/api/mood', {
-              headers: {
-                'Authorization': `Bearer ${token}`
-              },
-              params: {
-                days: days
-              }
-            });
-            
-            const processedMoods = response.data.map(mood => ({
-              ...mood,
-              timestamp: mood.timestamp?._seconds 
-                ? new Date(mood.timestamp._seconds * 1000) 
-                : new Date(mood.timestamp)
-            })).sort((a, b) => b.timestamp - a.timestamp);
-            
-            this.moods = processedMoods;
-            this.lastFetch = new Date();
-            
-            return processedMoods;
-          }
-          throw error;
+        if (!userId) {
+          throw new Error('User not authenticated');
         }
+
+        // Calculate the date range
+        const endDate = new Date();
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() - days);
+
+        // Create Firestore query
+        const moodsRef = collection(db, 'moods');
+        const moodsQuery = query(
+          moodsRef,
+          where('userId', '==', userId),
+          where('timestamp', '>=', Timestamp.fromDate(startDate)),
+          orderBy('timestamp', 'desc')
+        );
+
+        const querySnapshot = await getDocs(moodsQuery);
+        
+        const moods = [];
+        querySnapshot.forEach((doc) => {
+          moods.push({
+            id: doc.id,
+            ...doc.data(),
+            timestamp: doc.data().timestamp.toDate()
+          });
+        });
+
+        this.moods = moods;
+        this.lastFetch = new Date();
+        return moods;
+
       } catch (error) {
         console.error('Error fetching moods:', error);
         this.error = error.message;
-        
-        // In development, return sample data if no moods exist
-        if (process.env.NODE_ENV === 'development') {
-          console.log('Using sample mood data for development');
-          const sampleMoods = this.generateSampleMoods();
-          this.moods = sampleMoods;
-          return sampleMoods;
-        }
-        
-        // If we have existing moods, return those instead of throwing
-        if (this.moods.length > 0) {
-          console.log('Using cached mood data');
-          return this.moods;
-        }
-        
-        // If all else fails, return sample data
-        const sampleMoods = this.generateSampleMoods();
-        this.moods = sampleMoods;
-        return sampleMoods;
+        throw error;
       } finally {
         this.loading = false;
       }
@@ -156,34 +131,36 @@ export const useMoodStore = defineStore('mood', {
       
       try {
         const authStore = useAuthStore();
-        const token = await authStore.user.getIdToken();
+        const userId = authStore.userId;
         
-        // In development mode, bypass API call
-        if (process.env.NODE_ENV === 'development') {
-          console.log('Development mode: Adding mood locally');
-          const newMood = {
-            id: `local-${Date.now()}`,
-            score,
-            note,
-            timestamp: new Date()
-          };
-          this.moods.unshift(newMood);
-          return newMood;
+        if (!userId) {
+          throw new Error('User not authenticated');
         }
 
-        const response = await apiClient.post('/api/moods', {
+        // Create new mood document in Firestore
+        const moodsRef = collection(db, 'moods');
+        const newMoodRef = await addDoc(moodsRef, {
+          userId,
           score,
           note,
-          timestamp: new Date().toISOString() // Ensure proper date format
+          timestamp: serverTimestamp(),
+          created_at: serverTimestamp()
         });
-        
+
+        // Create local mood object
         const newMood = {
-          ...response.data,
-          timestamp: new Date()
+          id: newMoodRef.id,
+          userId,
+          score,
+          note,
+          timestamp: new Date(),
+          created_at: new Date()
         };
         
+        // Update local state
         this.moods.unshift(newMood);
         return newMood;
+
       } catch (error) {
         console.error('Error logging mood:', error);
         this.error = error.message;
