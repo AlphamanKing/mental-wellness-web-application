@@ -158,63 +158,9 @@ export const useMoodStore = defineStore('mood', {
         const authStore = useAuthStore();
         const token = await authStore.user.getIdToken();
         
-        // Try the first endpoint
-        try {
-          const response = await axios.post(
-            '/api/moods',
-            {
-              score,
-              note,
-              timestamp: new Date()
-            },
-            {
-              headers: {
-                'Authorization': `Bearer ${token}`
-              }
-            }
-          );
-          
-          // Add the new mood to the state
-          const newMood = {
-            ...response.data,
-            timestamp: new Date()
-          };
-          
-          this.moods.unshift(newMood);
-          return newMood;
-        } catch (error) {
-          // If first endpoint fails, try the alternative
-          if (error.response?.status === 404) {
-            const response = await axios.post(
-              '/api/mood',
-              {
-                score,
-                note,
-                timestamp: new Date()
-              },
-              {
-                headers: {
-                  'Authorization': `Bearer ${token}`
-                }
-              }
-            );
-            
-            const newMood = {
-              ...response.data,
-              timestamp: new Date()
-            };
-            
-            this.moods.unshift(newMood);
-            return newMood;
-          }
-          throw error;
-        }
-      } catch (error) {
-        console.error('Error logging mood:', error);
-        this.error = error.message;
-        
-        // In development, add the mood locally
+        // In development mode, bypass API call
         if (process.env.NODE_ENV === 'development') {
+          console.log('Development mode: Adding mood locally');
           const newMood = {
             id: `local-${Date.now()}`,
             score,
@@ -224,7 +170,23 @@ export const useMoodStore = defineStore('mood', {
           this.moods.unshift(newMood);
           return newMood;
         }
+
+        const response = await apiClient.post('/api/moods', {
+          score,
+          note,
+          timestamp: new Date().toISOString() // Ensure proper date format
+        });
         
+        const newMood = {
+          ...response.data,
+          timestamp: new Date()
+        };
+        
+        this.moods.unshift(newMood);
+        return newMood;
+      } catch (error) {
+        console.error('Error logging mood:', error);
+        this.error = error.message;
         throw error;
       } finally {
         this.loading = false;

@@ -8,6 +8,10 @@
         </button>
       </div>
       
+      <div v-if="error" class="mb-4 p-4 bg-red-100 text-red-700 rounded-lg">
+        {{ error }}
+      </div>
+      
       <!-- Mood chart -->
       <div class="bg-white rounded-xl shadow-soft p-6 mb-8">
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
@@ -189,7 +193,9 @@
 import { ref, computed, onMounted, watch, onBeforeUnmount } from 'vue'
 import { useMoodStore } from '../store/mood'
 import { format } from 'date-fns'
+import { enUS } from 'date-fns/locale'
 import Chart from 'chart.js/auto'
+import 'chartjs-adapter-date-fns' // Add this import
 
 // Store
 const moodStore = useMoodStore()
@@ -328,18 +334,31 @@ const updateChart = () => {
   
   const ctx = moodChart.value.getContext('2d');
   
-  // Destroy existing chart if it exists
   if (chartInstance.value) {
     chartInstance.value.destroy();
   }
   
-  // Prepare data for the chart
-  const moodData = moods.value.map(mood => ({
-    x: new Date(mood.timestamp._seconds ? mood.timestamp._seconds * 1000 : mood.timestamp),
-    y: mood.score
-  })).sort((a, b) => a.x - b.x); // Sort by date ascending
-  
-  // Create new chart
+  // Improve data processing
+  const moodData = moods.value.map(mood => {
+    const timestamp = mood.timestamp;
+    let date;
+    
+    if (timestamp?._seconds) {
+      date = new Date(timestamp._seconds * 1000);
+    } else if (timestamp instanceof Date) {
+      date = timestamp;
+    } else if (typeof timestamp === 'string') {
+      date = new Date(timestamp);
+    } else {
+      date = new Date();
+    }
+    
+    return {
+      x: date,
+      y: mood.score
+    };
+  }).sort((a, b) => a.x - b.x);
+
   chartInstance.value = new Chart(ctx, {
     type: 'line',
     data: {
@@ -378,36 +397,92 @@ const updateChart = () => {
               const labels = ['', 'Very Low', 'Low', 'Neutral', 'Good', 'Excellent'];
               return labels[value] || value;
             }
-          },
-          title: {
-            display: true,
-            text: 'Mood Score'
           }
         }
       },
       plugins: {
         legend: {
           display: false
-        },
-        tooltip: {
-          callbacks: {
-            label: (context) => {
-              const score = context.parsed.y;
-              const labels = ['Very Low', 'Low', 'Neutral', 'Good', 'Excellent'];
-              return `Mood: ${labels[Math.min(Math.max(Math.floor(score) - 1, 0), 4)]} (${score}/5)`;
-            }
-          }
         }
       }
     }
   });
 }
 
+const initializeChart = () => {
+  if (!moodChart.value || !moods.value) return;
+  
+  const ctx = moodChart.value.getContext('2d');
+  
+  if (chartInstance.value) {
+    chartInstance.value.destroy();
+  }
+
+  const data = moods.value.map(mood => ({
+    x: new Date(mood.timestamp),
+    y: mood.score
+  })).sort((a, b) => a.x - b.x);
+
+  chartInstance.value = new Chart(ctx, {
+    type: 'line',
+    data: {
+      datasets: [{
+        label: 'Mood Score',
+        data: data,
+        borderColor: '#2563eb',
+        backgroundColor: 'rgba(37, 99, 235, 0.1)',
+        tension: 0.4,
+        fill: true
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        x: {
+          type: 'time',
+          time: {
+            unit: 'day',
+            displayFormats: {
+              day: 'MMM d'
+            }
+          },
+          adapters: {
+            date: {
+              locale: enUS
+            }
+          }
+        },
+        y: {
+          min: 0,
+          max: 6,
+          ticks: {
+            stepSize: 1
+          }
+        }
+      }
+    }
+  });
+};
+
+// Replace the existing onMounted with this:
+onMounted(async () => {
+  try {
+    await loadMoodHistory();
+    initializeChart();
+  } catch (error) {
+    console.error('Error initializing mood tracker:', error);
+  }
+});
+
+// Update the submitMood function
 const submitMood = async () => {
   if (!moodScore.value) return;
   
   try {
     submitting.value = true;
+    error.value = null;
+    
     await moodStore.logMood(moodScore.value, moodNote.value);
     
     // Reset form
@@ -415,43 +490,23 @@ const submitMood = async () => {
     moodNote.value = '';
     showMoodForm.value = false;
     
-    // Refresh mood history
+    // Refresh data and chart
     await loadMoodHistory();
+    initializeChart();
   } catch (err) {
     console.error('Error submitting mood:', err);
-    error.value = err.message;
+    error.value = 'Failed to save mood. Please try again.';
   } finally {
     submitting.value = false;
   }
-}
+};
 
-// Watch for changes in period selection
-watch(selectedPeriod, () => {
-  loadMoodHistory();
-});
-
-// Watch for changes in moods to update chart
-watch(moods, () => {
-  updateChart();
-}, { deep: true });
-
-// Initialize on component mount
-onMounted(async () => {
-  await loadMoodHistory();
-  
-  // Set up auto-refresh every 5 minutes
-  refreshInterval.value = setInterval(() => {
-    loadMoodHistory();
-  }, 5 * 60 * 1000);
-});
-
-// Clean up on component unmount
-onBeforeUnmount(() => {
-  if (refreshInterval.value) {
-    clearInterval(refreshInterval.value);
-  }
-  if (chartInstance.value) {
-    chartInstance.value.destroy();
-  }
-});
+// Add watch for moods changes
+watch(
+  () => moods.value,
+  () => {
+    initializeChart();
+  },
+  { deep: true }
+);
 </script>
