@@ -88,7 +88,7 @@
             </div>
             
             <p class="text-sm text-neutral-600 mb-4">Talk to your AI therapist about anything that's on your mind.</p>
-            <router-link to="/chat/new" class="mt-auto btn btn-primary w-full flex items-center justify-center">
+            <router-link to="/chat" class="mt-auto btn btn-primary w-full flex items-center justify-center">
               <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
               </svg>
@@ -98,7 +98,7 @@
           
           <div v-else class="text-center py-8">
             <p class="text-neutral-600 mb-4">No conversations yet</p>
-            <router-link to="/chat/new" class="btn btn-primary flex items-center justify-center mx-auto">
+            <router-link to="/chat" class="btn btn-primary flex items-center justify-center mx-auto">
               <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
               </svg>
@@ -136,7 +136,7 @@
             </div>
             
             <p class="text-sm text-neutral-600 mb-4">Record your thoughts, feelings, and experiences in your private journal.</p>
-            <router-link to="/journal/new" class="mt-auto btn btn-primary w-full flex items-center justify-center">
+            <router-link to="/journal" class="mt-auto btn btn-primary w-full flex items-center justify-center">
               <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
               </svg>
@@ -146,7 +146,7 @@
           
           <div v-else class="text-center py-8">
             <p class="text-neutral-600 mb-4">No journal entries yet</p>
-            <router-link to="/journal/new" class="btn btn-primary flex items-center justify-center mx-auto">
+            <router-link to="/journal" class="btn btn-primary flex items-center justify-center mx-auto">
               <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
               </svg>
@@ -156,121 +156,67 @@
         </div>
       </div>
       
-      <!-- Quick Actions Section -->
-      <div class="bg-white rounded-xl shadow-soft p-6 mb-8">
-        <h2 class="text-xl font-semibold text-neutral-900 mb-4">Quick Actions</h2>
-        
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <!-- Log Mood Card -->
-          <div v-if="!latestMood" class="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-4 flex flex-col">
-            <div class="flex items-center mb-3">
-              <div class="w-10 h-10 rounded-full bg-blue-200 flex items-center justify-center mr-3">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <h3 class="font-medium text-lg">How are you feeling?</h3>
-            </div>
-            <p class="text-sm text-neutral-600 mb-4">Track your mood to identify patterns and improve your mental wellness.</p>
-            <router-link to="/mood-tracker" class="mt-auto btn btn-primary w-full">
-              Log Your Mood
-            </router-link>
+      <!-- Goals section -->
+      <div class="max-w-2xl mx-auto mb-8">
+        <div class="bg-white rounded-xl shadow-soft p-6">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-xl font-semibold text-neutral-900">Your Goals</h2>
+            <router-link to="/goals" class="text-sm text-primary-600 hover:text-primary-500">View all</router-link>
           </div>
           
-          <!-- Write Journal Card -->
-          <div v-if="!recentJournalEntries || recentJournalEntries.length === 0" class="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-4 flex flex-col">
-            <div class="flex items-center mb-3">
-              <div class="w-10 h-10 rounded-full bg-purple-200 flex items-center justify-center mr-3">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                </svg>
+          <div v-if="loadingGoals" class="space-y-4">
+            <div class="space-y-3">
+              <div class="flex items-center">
+                <div class="skeleton h-4 w-4 rounded mr-3"></div>
+                <div class="skeleton h-4 w-full"></div>
               </div>
-              <h3 class="font-medium text-lg">Express Your Thoughts</h3>
+              <div class="flex items-center">
+                <div class="skeleton h-4 w-4 rounded mr-3"></div>
+                <div class="skeleton h-4 w-full"></div>
+              </div>
+              <div class="flex items-center">
+                <div class="skeleton h-4 w-4 rounded mr-3"></div>
+                <div class="skeleton h-4 w-full"></div>
+              </div>
             </div>
-            <p class="text-sm text-neutral-600 mb-4">Journal your thoughts and feelings to gain insight and clarity.</p>
-            <router-link to="/journal/new" class="mt-auto btn btn-primary w-full">
-              Write Journal Entry
-            </router-link>
+            <div class="skeleton h-10 w-full rounded-md mt-4"></div>
           </div>
           
-          <!-- Set Goal Card -->
-          <div v-if="!activeGoals || activeGoals.length === 0" class="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-4 flex flex-col">
-            <div class="flex items-center mb-3">
-              <div class="w-10 h-10 rounded-full bg-green-200 flex items-center justify-center mr-3">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v11a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                </svg>
+          <div v-else-if="activeGoals && activeGoals.length > 0" class="space-y-4">
+            <div class="space-y-3">
+              <div v-for="goal in activeGoals.slice(0, 3)" :key="goal.id" class="flex items-center p-3 bg-neutral-50 rounded-lg hover:bg-neutral-100 transition-colors">
+                <input 
+                  :id="'goal-' + goal.id" 
+                  type="checkbox" 
+                  :checked="goal.completed" 
+                  @change="toggleGoalCompletion(goal)"
+                  class="h-4 w-4 text-primary-600 focus:ring-primary-500 border-neutral-300 rounded" 
+                />
+                <label :for="'goal-' + goal.id" class="ml-3 block text-sm text-neutral-700 flex-grow">
+                  {{ goal.title }}
+                </label>
+                <span class="text-xs text-neutral-500">{{ formatDate(goal.due_date) }}</span>
               </div>
-              <h3 class="font-medium text-lg">Set New Goals</h3>
             </div>
-            <p class="text-sm text-neutral-600 mb-4">Create meaningful goals to guide your personal growth journey.</p>
-            <router-link to="/goals/new" class="mt-auto btn btn-primary w-full">
+            
+            <p class="text-sm text-neutral-600 mb-4">Track your progress towards your mental wellness goals.</p>
+            <router-link to="/goals" class="mt-auto btn btn-primary w-full flex items-center justify-center">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v11a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              </svg>
               Create New Goal
             </router-link>
           </div>
-        </div>
-      </div>
-      
-      <!-- Goals section -->
-      <div class="bg-white rounded-xl shadow-soft p-6 mb-8">
-        <div class="flex items-center justify-between mb-4">
-          <h2 class="text-xl font-semibold text-neutral-900">Your Goals</h2>
-          <router-link to="/goals" class="text-sm text-primary-600 hover:text-primary-500">View all</router-link>
-        </div>
-        
-        <div v-if="loadingGoals" class="space-y-4">
-          <div class="space-y-3">
-            <div class="flex items-center">
-              <div class="skeleton h-4 w-4 rounded mr-3"></div>
-              <div class="skeleton h-4 w-full"></div>
-            </div>
-            <div class="flex items-center">
-              <div class="skeleton h-4 w-4 rounded mr-3"></div>
-              <div class="skeleton h-4 w-full"></div>
-            </div>
-            <div class="flex items-center">
-              <div class="skeleton h-4 w-4 rounded mr-3"></div>
-              <div class="skeleton h-4 w-full"></div>
-            </div>
-          </div>
-          <div class="skeleton h-10 w-full rounded-md mt-4"></div>
-        </div>
-        
-        <div v-else-if="activeGoals && activeGoals.length > 0" class="space-y-4">
-          <div class="space-y-3">
-            <div v-for="goal in activeGoals.slice(0, 3)" :key="goal.id" class="flex items-center">
-              <input 
-                :id="'goal-' + goal.id" 
-                type="checkbox" 
-                :checked="goal.completed" 
-                @change="toggleGoalCompletion(goal)"
-                class="h-4 w-4 text-primary-600 focus:ring-primary-500 border-neutral-300 rounded" 
-              />
-              <label :for="'goal-' + goal.id" class="ml-3 block text-sm text-neutral-700">
-                {{ goal.title }}
-                <span v-if="goal.target_date" class="text-xs text-neutral-500 ml-2">
-                  Due: {{ formatDate(goal.target_date) }}
-                </span>
-              </label>
-            </div>
-          </div>
           
-          <router-link to="/goals/new" class="mt-4 btn btn-primary w-full flex items-center justify-center">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-            </svg>
-            Add New Goal
-          </router-link>
-        </div>
-        
-        <div v-else class="text-center py-8">
-          <p class="text-neutral-600 mb-4">No goals set yet</p>
-          <router-link to="/goals/new" class="btn btn-primary flex items-center justify-center mx-auto">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-            </svg>
-            Create Your First Goal
-          </router-link>
+          <div v-else class="text-center py-8">
+            <p class="text-neutral-600 mb-4">No goals set yet</p>
+            <router-link to="/goals" class="btn btn-primary flex items-center justify-center mx-auto">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v11a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              </svg>
+              Create Your First Goal
+            </router-link>
+          </div>
         </div>
       </div>
       
@@ -456,88 +402,155 @@ onMounted(() => {
   const { signal } = controller;
   fetchControllers.push(controller);
   
-  // Load all data in parallel using Promise.allSettled
-  Promise.allSettled([
-    // Fetch mood data
-    (async () => {
-      try {
-        loadingMood.value = true;
-        const moodData = await apiClient.get('/api/mood/recent', { 
-          signal, 
-          params: { limit: 5 } 
-        });
-        if (moodData) {
-          moodStore.setMoods(moodData);
+  // Add a small delay to ensure auth is initialized before making API requests
+  setTimeout(() => {
+    // Load all data in parallel using Promise.allSettled
+    Promise.allSettled([
+      // Fetch mood data
+      (async () => {
+        try {
+          loadingMood.value = true;
+          let attempts = 0;
+          let moodData = null;
+          
+          while (!moodData && attempts < 3) {
+            try {
+              moodData = await apiClient.get('/api/mood/recent', { 
+                signal, 
+                params: { limit: 5 },
+                cache: false  // Disable cache for fresh data
+              });
+              
+              if (moodData) {
+                moodStore.setMoods(moodData);
+                fetchStatus.value.mood.success = true;
+              }
+            } catch (error) {
+              attempts++;
+              console.log(`Mood data fetch attempt ${attempts} failed, retrying...`);
+              if (attempts >= 3) throw error;
+              await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1s between retries
+            }
+          }
+        } catch (error) {
+          if (error.name !== 'AbortError') {
+            console.error('Error fetching moods:', error);
+            fetchStatus.value.mood.error = error.message;
+          }
+        } finally {
+          loadingMood.value = false;
         }
-      } catch (error) {
-        if (error.name !== 'AbortError') {
-          console.error('Error fetching moods:', error);
+      })(),
+      
+      // Fetch chat data
+      (async () => {
+        try {
+          loadingChat.value = true;
+          let attempts = 0;
+          let chatData = null;
+          
+          while (!chatData && attempts < 3) {
+            try {
+              chatData = await apiClient.get('/api/chat/conversations', { 
+                signal,
+                params: { limit: 3 },
+                cache: false  // Disable cache for fresh data
+              });
+              
+              if (chatData) {
+                chatStore.setConversations(chatData);
+                fetchStatus.value.chat.success = true;
+              }
+            } catch (error) {
+              attempts++;
+              console.log(`Chat data fetch attempt ${attempts} failed, retrying...`);
+              if (attempts >= 3) throw error;
+              await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1s between retries
+            }
+          }
+        } catch (error) {
+          if (error.name !== 'AbortError') {
+            console.error('Error fetching chat history:', error);
+            fetchStatus.value.chat.error = error.message;
+          }
+        } finally {
+          loadingChat.value = false;
         }
-      } finally {
-        loadingMood.value = false;
-      }
-    })(),
-    
-    // Fetch chat data
-    (async () => {
-      try {
-        loadingChat.value = true;
-        const chatData = await apiClient.get('/api/chat/conversations', { 
-          signal,
-          params: { limit: 3 } 
-        });
-        if (chatData) {
-          chatStore.setConversations(chatData);
+      })(),
+      
+      // Fetch journal entries
+      (async () => {
+        try {
+          loadingJournal.value = true;
+          let attempts = 0;
+          let journalData = null;
+          
+          while (!journalData && attempts < 3) {
+            try {
+              journalData = await apiClient.get('/api/journal/entries', { 
+                signal,
+                params: { limit: 3 },
+                cache: false  // Disable cache for fresh data
+              });
+              
+              if (journalData) {
+                journalStore.setJournals(journalData);
+                fetchStatus.value.journal.success = true;
+              }
+            } catch (error) {
+              attempts++;
+              console.log(`Journal data fetch attempt ${attempts} failed, retrying...`);
+              if (attempts >= 3) throw error;
+              await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1s between retries
+            }
+          }
+        } catch (error) {
+          if (error.name !== 'AbortError') {
+            console.error('Error fetching journal entries:', error);
+            fetchStatus.value.journal.error = error.message;
+          }
+        } finally {
+          loadingJournal.value = false;
         }
-      } catch (error) {
-        if (error.name !== 'AbortError') {
-          console.error('Error fetching chat history:', error);
+      })(),
+      
+      // Fetch goals data
+      (async () => {
+        try {
+          loadingGoals.value = true;
+          let attempts = 0;
+          let goalsData = null;
+          
+          while (!goalsData && attempts < 3) {
+            try {
+              goalsData = await apiClient.get('/api/goals', { 
+                signal,
+                params: { status: 'active' },
+                cache: false  // Disable cache for fresh data
+              });
+              
+              if (goalsData) {
+                goalsStore.setGoals(goalsData);
+                fetchStatus.value.goals.success = true;
+              }
+            } catch (error) {
+              attempts++;
+              console.log(`Goals data fetch attempt ${attempts} failed, retrying...`);
+              if (attempts >= 3) throw error;
+              await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1s between retries
+            }
+          }
+        } catch (error) {
+          if (error.name !== 'AbortError') {
+            console.error('Error fetching goals:', error);
+            fetchStatus.value.goals.error = error.message;
+          }
+        } finally {
+          loadingGoals.value = false;
         }
-      } finally {
-        loadingChat.value = false;
-      }
-    })(),
-    
-    // Fetch journal entries
-    (async () => {
-      try {
-        loadingJournal.value = true;
-        const journalData = await apiClient.get('/api/journal/entries', { 
-          signal,
-          params: { limit: 3 } 
-        });
-        if (journalData) {
-          journalStore.setJournals(journalData);
-        }
-      } catch (error) {
-        if (error.name !== 'AbortError') {
-          console.error('Error fetching journal entries:', error);
-        }
-      } finally {
-        loadingJournal.value = false;
-      }
-    })(),
-    
-    // Fetch goals data
-    (async () => {
-      try {
-        loadingGoals.value = true;
-        const goalsData = await apiClient.get('/api/goals', { 
-          signal,
-          params: { status: 'active' } 
-        });
-        if (goalsData) {
-          goalsStore.setGoals(goalsData);
-        }
-      } catch (error) {
-        if (error.name !== 'AbortError') {
-          console.error('Error fetching goals:', error);
-        }
-      } finally {
-        loadingGoals.value = false;
-      }
-    })()
-  ]);
+      })()
+    ]);
+  }, 500); // Wait 500ms before starting API requests to ensure auth is initialized
 })
 
 // Clean up on component unmount

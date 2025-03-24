@@ -33,7 +33,10 @@ const authStore = useAuthStore()
 // Set up auth state listener
 let unsubscribe
 onMounted(() => {
+  // Remove the automatic logout that's causing issues
+  
   unsubscribe = onAuthStateChanged(auth, (user) => {
+    // Update user in auth store when auth state changes
     authStore.setUser(user)
     
     // If user is on login/register page and is authenticated, redirect to dashboard

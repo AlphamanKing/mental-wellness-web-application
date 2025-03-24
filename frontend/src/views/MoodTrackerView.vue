@@ -186,7 +186,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, onBeforeUnmount } from 'vue'
 import { useMoodStore } from '../store/mood'
 import { format } from 'date-fns'
 import Chart from 'chart.js/auto'
@@ -203,6 +203,8 @@ const submitting = ref(false)
 const moodChart = ref(null)
 const chartInstance = ref(null)
 const selectedPeriod = ref(30)
+const error = ref(null)
+const refreshInterval = ref(null)
 
 // Time period options
 const timePeriods = [
@@ -307,85 +309,79 @@ const getMoodTextColor = (score) => {
   return colors[Math.min(Math.max(Math.floor(score) - 1, 0), 4)]
 }
 
-const submitMood = async () => {
-  if (!moodScore.value) return
-  
-  submitting.value = true
-  
+const loadMoodHistory = async () => {
   try {
-    await moodStore.recordMood(moodScore.value, moodNote.value)
-    showMoodForm.value = false
-    moodScore.value = null
-    moodNote.value = ''
-    
-    // Refresh chart
-    renderChart()
-  } catch (error) {
-    console.error('Error recording mood:', error)
+    loading.value = true;
+    error.value = null;
+    await moodStore.fetchMoods(selectedPeriod.value);
+    updateChart();
+  } catch (err) {
+    console.error('Error loading mood history:', err);
+    error.value = err.message;
   } finally {
-    submitting.value = false
+    loading.value = false;
   }
 }
 
-const renderChart = () => {
+const updateChart = () => {
+  if (!moodChart.value || !moods.value || moods.value.length === 0) return;
+  
+  const ctx = moodChart.value.getContext('2d');
+  
+  // Destroy existing chart if it exists
   if (chartInstance.value) {
-    chartInstance.value.destroy()
+    chartInstance.value.destroy();
   }
   
-  if (!moodChart.value) return
+  // Prepare data for the chart
+  const moodData = moods.value.map(mood => ({
+    x: new Date(mood.timestamp._seconds ? mood.timestamp._seconds * 1000 : mood.timestamp),
+    y: mood.score
+  })).sort((a, b) => a.x - b.x); // Sort by date ascending
   
-  const sortedMoods = [...moods.value].sort((a, b) => {
-    return new Date(a.timestamp) - new Date(b.timestamp)
-  })
-  
-  // If there are no moods, don't try to render the chart
-  if (sortedMoods.length === 0) {
-    console.log('No mood data available to render chart');
-    return;
-  }
-  
-  const labels = sortedMoods.map(mood => {
-    return format(new Date(mood.timestamp), 'MMM d')
-  })
-  
-  const data = sortedMoods.map(mood => mood.score)
-  
-  const ctx = moodChart.value.getContext('2d')
-  
-  // Create gradient
-  const gradient = ctx.createLinearGradient(0, 0, 0, 200)
-  gradient.addColorStop(0, 'rgba(14, 165, 233, 0.5)')
-  gradient.addColorStop(1, 'rgba(14, 165, 233, 0)')
-  
+  // Create new chart
   chartInstance.value = new Chart(ctx, {
     type: 'line',
     data: {
-      labels,
       datasets: [{
         label: 'Mood Score',
-        data,
-        backgroundColor: gradient,
-        borderColor: 'rgba(14, 165, 233, 1)',
-        borderWidth: 2,
+        data: moodData,
+        borderColor: '#2563eb',
+        backgroundColor: 'rgba(37, 99, 235, 0.1)',
         tension: 0.4,
-        fill: true,
-        pointBackgroundColor: 'rgba(14, 165, 233, 1)',
-        pointBorderColor: '#fff',
-        pointBorderWidth: 2,
-        pointRadius: 5,
-        pointHoverRadius: 7
+        fill: true
       }]
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
       scales: {
+        x: {
+          type: 'time',
+          time: {
+            unit: 'day',
+            displayFormats: {
+              day: 'MMM d'
+            }
+          },
+          title: {
+            display: true,
+            text: 'Date'
+          }
+        },
         y: {
-          beginAtZero: false,
           min: 0,
-          max: 5,
+          max: 6,
           ticks: {
-            stepSize: 1
+            stepSize: 1,
+            callback: function(value) {
+              const labels = ['', 'Very Low', 'Low', 'Neutral', 'Good', 'Excellent'];
+              return labels[value] || value;
+            }
+          },
+          title: {
+            display: true,
+            text: 'Mood Score'
           }
         }
       },
@@ -395,79 +391,67 @@ const renderChart = () => {
         },
         tooltip: {
           callbacks: {
-            title: (tooltipItems) => {
-              const index = tooltipItems[0].dataIndex
-              return format(new Date(sortedMoods[index].timestamp), 'MMMM d, yyyy h:mm a')
-            },
             label: (context) => {
-              const score = context.raw
-              return `Mood: ${getMoodLabel(score)} (${score}/5)`
-            },
-            afterLabel: (context) => {
-              const index = context.dataIndex
-              const note = sortedMoods[index].note
-              return note ? `Note: ${note}` : ''
+              const score = context.parsed.y;
+              const labels = ['Very Low', 'Low', 'Neutral', 'Good', 'Excellent'];
+              return `Mood: ${labels[Math.min(Math.max(Math.floor(score) - 1, 0), 4)]} (${score}/5)`;
             }
           }
         }
       }
     }
-  })
+  });
 }
 
-// Fetch mood data on component mount
-onMounted(async () => {
-  loading.value = true;
+const submitMood = async () => {
+  if (!moodScore.value) return;
   
   try {
-    // First try to fetch from API
-    await moodStore.fetchMoods(selectedPeriod.value);
+    submitting.value = true;
+    await moodStore.logMood(moodScore.value, moodNote.value);
     
-    // Check if we got any data
-    if (moods.value && moods.value.length > 0) {
-      renderChart();
-    } else {
-      console.log('No mood data available on first load');
-      
-      // Set some sample data if no data available (for new users)
-      if (process.env.NODE_ENV === 'development') {
-        console.log('Adding sample mood data in development mode');
-        // This is just for development, to show something in the chart
-        const sampleMoods = [
-          { score: 3, timestamp: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000), note: 'Feeling okay' },
-          { score: 4, timestamp: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), note: 'Good day' },
-          { score: 2, timestamp: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000), note: 'Tough day' },
-          { score: 3, timestamp: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), note: 'Feeling better' },
-          { score: 5, timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), note: 'Great day!' },
-          { score: 4, timestamp: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), note: 'Productive day' },
-        ];
-        moodStore.setMoods(sampleMoods);
-        renderChart();
-      }
-    }
-  } catch (error) {
-    console.error('Error fetching moods:', error);
+    // Reset form
+    moodScore.value = null;
+    moodNote.value = '';
+    showMoodForm.value = false;
     
-    // Try to render whatever data we might have
-    if (moods.value && moods.value.length > 0) {
-      renderChart();
-    }
+    // Refresh mood history
+    await loadMoodHistory();
+  } catch (err) {
+    console.error('Error submitting mood:', err);
+    error.value = err.message;
   } finally {
-    loading.value = false;
+    submitting.value = false;
   }
+}
+
+// Watch for changes in period selection
+watch(selectedPeriod, () => {
+  loadMoodHistory();
 });
 
-// Watch for time period changes
-watch(selectedPeriod, async (newPeriod) => {
-  loading.value = true
+// Watch for changes in moods to update chart
+watch(moods, () => {
+  updateChart();
+}, { deep: true });
+
+// Initialize on component mount
+onMounted(async () => {
+  await loadMoodHistory();
   
-  try {
-    await moodStore.fetchMoods(newPeriod)
-    renderChart()
-  } catch (error) {
-    console.error('Error fetching moods:', error)
-  } finally {
-    loading.value = false
+  // Set up auto-refresh every 5 minutes
+  refreshInterval.value = setInterval(() => {
+    loadMoodHistory();
+  }, 5 * 60 * 1000);
+});
+
+// Clean up on component unmount
+onBeforeUnmount(() => {
+  if (refreshInterval.value) {
+    clearInterval(refreshInterval.value);
   }
-})
+  if (chartInstance.value) {
+    chartInstance.value.destroy();
+  }
+});
 </script>

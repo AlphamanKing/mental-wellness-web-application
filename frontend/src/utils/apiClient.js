@@ -20,6 +20,24 @@ const apiClient = {
   timeout: 10000,
   
   /**
+   * Get auth token with retry logic
+   * @private
+   * @returns {Promise<string|null>} Auth token or null
+   */
+  async getAuthToken() {
+    const auth = getAuth();
+    if (!auth.currentUser) return null;
+    
+    try {
+      // Try to get the token
+      return await auth.currentUser.getIdToken(true); // Force token refresh
+    } catch (error) {
+      console.error('[API] Error getting auth token:', error);
+      return null;
+    }
+  },
+  
+  /**
    * Make a GET request with caching
    * @param {string} endpoint - API endpoint
    * @param {Object} options - Request options
@@ -44,8 +62,7 @@ const apiClient = {
     
     try {
       // Get auth token
-      const auth = getAuth();
-      const token = auth.currentUser ? await auth.currentUser.getIdToken() : null;
+      const token = await this.getAuthToken();
       
       const headers = {};
       if (token) {
@@ -86,8 +103,7 @@ const apiClient = {
   async post(endpoint, data = {}, { signal } = {}) {
     try {
       // Get auth token
-      const auth = getAuth();
-      const token = auth.currentUser ? await auth.currentUser.getIdToken() : null;
+      const token = await this.getAuthToken();
       
       const headers = {
         'Content-Type': 'application/json'
@@ -122,8 +138,7 @@ const apiClient = {
   async put(endpoint, data = {}, { signal } = {}) {
     try {
       // Get auth token
-      const auth = getAuth();
-      const token = auth.currentUser ? await auth.currentUser.getIdToken() : null;
+      const token = await this.getAuthToken();
       
       const headers = {
         'Content-Type': 'application/json'
