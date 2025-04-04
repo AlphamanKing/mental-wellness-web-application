@@ -870,7 +870,6 @@ def get_user_stats():
     """
     Endpoint to get user activity statistics
     """
-    # Verify Firebase token
     auth_header = request.headers.get('Authorization')
     if not auth_header:
         return jsonify({'error': 'No authorization header provided'}), 401
@@ -880,29 +879,46 @@ def get_user_stats():
         return jsonify({'error': 'Invalid or expired token'}), 401
     
     try:
+        logger.info(f"Fetching stats for user: {user_id}")
+        
+        # Ensure Firestore is initialized
+        if not db:
+            raise ValueError("Firestore client not initialized")
+        
         # Get conversation count
         conversations_ref = db.collection('conversations').document(user_id).collection('chats')
         conversation_count = len(list(conversations_ref.stream()))
+        logger.debug(f"Found {conversation_count} conversations")
         
         # Get journal entry count
         journals_ref = db.collection('journals').document(user_id).collection('entries')
         journal_count = len(list(journals_ref.stream()))
         
-        # Get mood entry count
+        # Get mood entry count and calculate average
         moods_ref = db.collection('moods').document(user_id).collection('entries')
-        mood_count = len(list(moods_ref.stream()))
+        mood_entries = list(moods_ref.stream())
+        mood_count = len(mood_entries)
         
-        # Get goal count
-        goals_ref = db.collection('goals').document(user_id).collection('items')
-        goal_count = len(list(goals_ref.stream()))
-        completed_goals_ref = goals_ref.where('completed', '==', True)
-        completed_goal_count = len(list(completed_goals_ref.stream()))
-        
-        # Calculate average mood if there are mood entries
         average_mood = None
         if mood_count > 0:
-            mood_values = [doc.to_dict()['value'] for doc in moods_ref.stream()]
-            average_mood = sum(mood_values) / len(mood_values)
+            total_mood = 0
+            valid_entries = 0
+            for entry in mood_entries:
+                mood_value = entry.to_dict().get('mood', 0)
+                try:
+                    total_mood += float(mood_value)
+                    valid_entries += 1
+                except (ValueError, TypeError):
+                    logger.warning(f"Invalid mood value for entry {entry.id}: {mood_value}")
+            average_mood = round(total_mood / valid_entries, 1) if valid_entries > 0 else None
+        
+        # Get goal counts
+        goals_ref = db.collection('goals').document(user_id).collection('items')
+        goal_count = len(list(goals_ref.stream()))
+        
+        # Get completed goals count
+        completed_goals_ref = goals_ref.where('completed', '==', True)
+        completed_goal_count = len(list(completed_goals_ref.stream()))
         
         stats = {
             'conversationCount': conversation_count,
@@ -916,8 +932,13 @@ def get_user_stats():
         return jsonify(stats), 200
     
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
+        logger.error(f"Error fetching user stats: {str(e)}", exc_info=True)
+        return jsonify({
+            'error': 'Failed to fetch stats',
+            'details': str(e),
+            'type': type(e).__name__
+        }), 500
+    
 @app.route('/api/user/profile/image', methods=['POST'])
 def upload_profile_image():
     """

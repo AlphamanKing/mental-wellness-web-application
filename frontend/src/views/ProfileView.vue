@@ -347,83 +347,46 @@ const triggerFileInput = () => {
 
 // Handle profile image change
 const handleImageChange = async (event) => {
-  const file = event.target.files[0]
-  if (!file) return
+  const file = event.target.files[0];
+  if (!file) return;
   
   // Check file type and size
   if (!file.type.startsWith('image/')) {
-    showNotification('Please select an image file', 'error')
-    return
+    showNotification('Please select an image file', 'error');
+    return;
   }
   
   if (file.size > 2 * 1024 * 1024) { // 2MB limit
-    showNotification('Image size should be less than 2MB', 'error')
-    return
+    showNotification('Image size should be less than 2MB', 'error');
+    return;
   }
   
   try {
-    // Show uploading notification
-    showNotification('Uploading profile picture...', 'info')
+    showNotification('Uploading profile picture...', 'info');
     
-    // Use the loading state manager for better error handling
-    const downloadURL = await executeWithLoading('profileImage', async () => {
-      // Create FormData for the image upload
-      const formData = new FormData()
-      formData.append('profileImage', file)
-      
-      // Upload through API client to handle auth and error handling
-      const response = await apiClient.post('/api/user/profile/image', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        },
-      })
-      
-      // Return the image URL
-      return response.imageUrl
-    })
+    const downloadURL = await profileStore.uploadProfileImage(file);
     
     // Update local state
     if (profileData.value) {
-      profileData.value.photoURL = downloadURL
+      profileData.value.photoURL = downloadURL;
     }
     
-    // Force UI update in any components that use the user's profile image
+    // Force UI update
     document.dispatchEvent(new CustomEvent('user-profile-updated', {
       detail: {
         displayName: displayName.value,
         photoURL: downloadURL
       }
-    }))
+    }));
     
-    // Refresh profile data to ensure consistency
-    apiClient.clearCache('/api/user/profile')
-    
-    showNotification('Profile picture updated successfully', 'success')
+    showNotification('Profile picture updated successfully', 'success');
   } catch (error) {
-    console.error('Error updating profile picture:', error)
-    
-    // Provide a more specific error message
-    let errorMessage = 'Failed to update profile picture'
-    
-    if (error.message) {
-      if (error.message.includes('Please select')) {
-        errorMessage = error.message
-      } else if (error.message.includes('size')) {
-        errorMessage = error.message
-      } else if (error.message.includes('network')) {
-        errorMessage = 'Network error. Check your connection and try again.'
-      } else if (error.message.includes('timeout')) {
-        errorMessage = 'Upload timed out. Please try again with a smaller image.'
-      } else {
-        errorMessage = `Error: ${error.message}`
-      }
-    }
-    
-    showNotification(errorMessage, 'error')
-    
-    // Clear the file input to allow retrying with the same file
-    if (fileInput.value) {
-      fileInput.value.value = null
+    console.error('Error updating profile picture:', error);
+    showNotification(error.message || 'Failed to update profile picture', 'error');
+  } finally {
+    // Clear the file input
+    if (event.target) {
+      event.target.value = null;
     }
   }
 }

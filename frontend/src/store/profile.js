@@ -97,83 +97,64 @@ export const useProfileStore = defineStore('profile', {
       this.loading = true;
       this.error = null;
       
-      return new Promise((resolve, reject) => {
-        try {
-          console.log("Starting profile image upload");
-          
-          // Validate file
-          if (!file || !file.type.startsWith('image/')) {
-            this.loading = false;
-            reject(new Error('Please select a valid image file'));
-            return;
-          }
-          
-          // Check file size (max 2MB)
-          if (file.size > 2 * 1024 * 1024) {
-            this.loading = false;
-            reject(new Error('Image size should be less than 2MB'));
-            return;
-          }
-          
-          // Read the file as a data URL (base64)
-          const reader = new FileReader();
-          
-          reader.onload = async (e) => {
-            try {
-              const base64Image = e.target.result;
-              console.log("Image read successfully, length:", base64Image.length);
-              
-              // Update profile image in Firebase Auth
-              await updateProfile(auth.currentUser, {
-                photoURL: base64Image
-              });
-              
-              // Update profile image in Firestore
-              await setDoc(doc(db, 'users', auth.currentUser.uid), {
-                photoURL: base64Image
-              }, { merge: true });
-              
-              // Update local profile data
-              if (this.profile) {
-                this.profile.photoURL = base64Image;
-              }
-              
-              console.log("Profile image updated successfully");
-              this.loading = false;
-              resolve(base64Image);
-            } catch (error) {
-              console.error('Error updating profile with base64 image:', error);
-              this.error = error.message;
-              this.loading = false;
-              reject(error);
-            }
-          };
-          
-          reader.onerror = (error) => {
-            console.error('Error reading file:', error);
-            this.error = 'Failed to read the image file';
-            this.loading = false;
-            reject(new Error('Failed to read the image file'));
-          };
-          
-          // Start reading the file
-          reader.readAsDataURL(file);
-        } catch (error) {
-          console.error('Profile image upload error:', error);
-          this.error = error.message;
-          this.loading = false;
-          reject(error);
+      try {
+        const formData = new FormData();
+        // Change to 'profileImage' to match backend expectation
+        formData.append('profileImage', file);
+        
+        const auth = getAuth();
+        const token = await auth.currentUser.getIdToken();
+        
+        const response = await fetch(`${API_BASE_URL}/api/user/profile/image`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`
+            // Don't set Content-Type header for multipart/form-data
+          },
+          body: formData
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Failed to upload image');
         }
-      });
+
+        const data = await response.json();
+        
+        // Make sure we have an image URL in the response
+        if (!data.imageUrl) {
+          throw new Error('No image URL in response');
+        }
+
+        const imageUrl = data.imageUrl;
+
+        // Update Firebase Auth profile
+        await updateProfile(auth.currentUser, {
+          photoURL: imageUrl
+        });
+
+        // Update local profile data
+        if (this.profile) {
+          this.profile.photoURL = imageUrl;
+        }
+
+        return imageUrl;
+      } catch (error) {
+        console.error('Profile image upload error:', error);
+        this.error = error.message;
+        throw error;
+      } finally {
+        this.loading = false;
+      }
     },
     
     async fetchUserStats() {
-      this.loading = true
-      this.error = null
-      
+      this.loading = true;
+      this.error = null;
+
       try {
-        const auth = getAuth()
-        const token = await auth.currentUser.getIdToken()
+        const auth = getAuth();
+        const token = await auth.currentUser.getIdToken();
         
         const response = await fetch(`${API_BASE_URL}/api/user/stats`, {
           method: 'GET',
@@ -181,20 +162,39 @@ export const useProfileStore = defineStore('profile', {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
           }
-        })
+        });
         
         if (!response.ok) {
-          const errorData = await response.json()
-          throw new Error(errorData.error || 'Failed to fetch user stats')
+          throw new Error(`Failed to fetch stats: ${response.status}`);
         }
+
+        const data = await response.json();
         
-        this.stats = await response.json()
-        return this.stats
+        // Store the stats in the store
+        this.stats = {
+          conversationCount: parseInt(data.conversationCount) || 0,
+          journalCount: parseInt(data.journalCount) || 0,
+          moodCount: parseInt(data.moodCount) || 0,
+          goalCount: parseInt(data.goalCount) || 0,
+          completedGoalCount: parseInt(data.completedGoalCount) || 0,
+          averageMood: parseFloat(data.averageMood) || null
+        };
+
+        return this.stats;
       } catch (error) {
-        this.error = error.message
-        throw error
+        console.error('Error fetching stats:', error);
+        this.error = error.message;
+        // Return default stats object on error
+        return {
+          conversationCount: 0,
+          journalCount: 0,
+          moodCount: 0,
+          goalCount: 0,
+          completedGoalCount: 0,
+          averageMood: null
+        };
       } finally {
-        this.loading = false
+        this.loading = false;
       }
     }
   }
